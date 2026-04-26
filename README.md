@@ -23,6 +23,10 @@ A high-performance, real-time stock market dashboard designed to track US Stocks
 6. [Software Development Life Cycle (SDLC)](#-software-development-life-cycle-sdlc)
 7. [Tech Stack](#-tech-stack)
 8. [Setup & Installation](#-setup--installation)
+9. [How to Close](#-how-to-close)
+10. [For Learners: How I Built This Project](#-for-learners-how-i-built-this-project)
+11. [License](#-license)
+12. [Thank You](#-thank-you)
 
 ---
 
