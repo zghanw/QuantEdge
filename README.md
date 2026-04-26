@@ -125,15 +125,21 @@ This project utilizes a "Bring Your Own Key" architecture. Anyone can clone this
   GEMINI_API_KEY=your_gemini_key
   ```
 
-### 1. Start the Backend (FastAPI)
+### 1. Install & Start the Backend (FastAPI)
 ```bash
 cd backend
+# Install Python dependencies using uv
+uv sync
+# Start the server
 uv run uvicorn main:app --port 8000 --reload
 ```
 
-### 2. Start the Frontend (React + Vite)
+### 2. Install & Start the Frontend (React + Vite)
 ```bash
 cd frontend
+# Install Node dependencies using npm
+npm install
+# Start the development server
 npm run dev
 ```
 
