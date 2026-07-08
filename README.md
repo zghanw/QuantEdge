@@ -12,6 +12,8 @@ A high-performance, real-time stock market dashboard designed to track US Stocks
 
 > **Note on Usage**: This project is designed as an open-source, self-hosted tool for personal use. By utilizing a "Bring Your Own Key" (BYOK) architecture, it elegantly bypasses commercial scaling bottlenecks and API rate limits, allowing anyone to run their own private quantitative engine for free.
 
+![How it looks like](assets\visual.png)
+
 ---
 
 ## 📖 Table of Contents
