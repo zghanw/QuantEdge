@@ -36,6 +36,12 @@
   transform: translateY(-2px);
 }
 
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .search-form {
   position: relative;
   display: flex;

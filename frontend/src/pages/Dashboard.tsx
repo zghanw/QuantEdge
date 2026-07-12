@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Globe } from 'lucide-react';
 import { ETFCard } from '../components/ETFCard';
 import ArchitectureModal from '../components/ArchitectureModal';
 import { RegimeBanner, type Regime } from '../components/RegimeBanner';
+import { loadTickers as loadStoredTickers, saveTickers } from '../lib/watchlist';
 import './Dashboard.css';
 
 const loadTickers = (): string[] => {
@@ -9,11 +12,7 @@ const loadTickers = (): string[] => {
   if (fromUrl) {
     return [...new Set(fromUrl.split(',').map(t => t.trim().toUpperCase()).filter(Boolean))];
   }
-  try {
-    return JSON.parse(localStorage.getItem('quantedge.tickers') || '[]');
-  } catch {
-    return [];
-  }
+  return loadStoredTickers();
 };
 
 const Dashboard: React.FC = () => {
@@ -24,7 +23,7 @@ const Dashboard: React.FC = () => {
 
   // Persist the watchlist across refreshes (localStorage + shareable URL)
   useEffect(() => {
-    localStorage.setItem('quantedge.tickers', JSON.stringify(tickers));
+    saveTickers(tickers);
     const url = new URL(window.location.href);
     if (tickers.length) url.searchParams.set('tickers', tickers.join(','));
     else url.searchParams.delete('tickers');
@@ -63,6 +62,9 @@ const Dashboard: React.FC = () => {
             QuantEdge Analyst
           </div>
           <div className="nav-actions">
+            <Link to="/map" className="arch-btn icon-btn">
+              <Globe size={15} aria-hidden="true" /> World Map
+            </Link>
             <button
               className="arch-btn"
               onClick={() => setIsArchOpen(true)}

@@ -63,6 +63,11 @@ def read_root():
 def get_regime():
     return engine.regime
 
+@app.get("/signals")
+def get_signals():
+    # Current indicator snapshot for every loaded ticker (world map markers)
+    return {t: engine.calculate_indicators(t) for t in list(engine.historical_data.keys())}
+
 @app.get("/health")
 def health():
     now = time.time()
