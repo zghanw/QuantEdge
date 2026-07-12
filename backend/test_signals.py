@@ -34,7 +34,26 @@ def test_score_signal():
     assert score_signal(50, None, None, None, None) == (0, "Hold")
 
 
+def test_notify_transitions():
+    import notify
+    sent = []
+    notify.send_text = lambda text: (sent.append(text), True)[1]
+    notify._TG_TOKEN, notify._TG_CHAT = "t", "c"  # force configured()
+    notify._last_signal.clear()
+    notify._last_sent.clear()
+
+    notify.maybe_notify_signal_change("SPY", "Hold", 100.0)         # baseline: silent
+    assert sent == []
+    notify.maybe_notify_signal_change("SPY", "Strong Buy", 101.0)   # change: notify
+    assert len(sent) == 1 and "Hold → Strong Buy" in sent[0]
+    notify.maybe_notify_signal_change("SPY", "Hold", 100.5)         # within cooldown: silent
+    assert len(sent) == 1
+    notify.maybe_notify_signal_change("SPY", "Waiting for data")    # non-signal: ignored
+    assert len(sent) == 1
+
+
 if __name__ == "__main__":
     test_live_tick_buckets()
     test_score_signal()
+    test_notify_transitions()
     print("All checks passed.")

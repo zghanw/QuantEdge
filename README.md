@@ -18,17 +18,19 @@ A high-performance, real-time stock market dashboard designed to track US Stocks
 
 ## 📖 Table of Contents
 1. [Executive Summary](#-executive-summary)
-2. [Market Analysis & Business Model](#-market-analysis--business-model)
-3. [Feasibility Study & PIECES Framework](#-feasibility-study--pieces-framework)
-4. [System Architecture](#-system-architecture)
-5. [User Flow](#-user-flow)
-6. [Software Development Life Cycle (SDLC)](#-software-development-life-cycle-sdlc)
-7. [Tech Stack](#-tech-stack)
-8. [Setup & Installation](#-setup--installation)
-9. [How to Close](#-how-to-close)
-10. [For Learners: How I Built This Project](#-for-learners-how-i-built-this-project)
-11. [License](#-license)
-12. [Thank You](#-thank-you)
+2. [V2: Regime & Context Upgrade](#-v2-regime--context-upgrade)
+3. [V2.1: World Map](#-v21-world-map)
+4. [Market Analysis & Business Model](#-market-analysis--business-model)
+5. [Feasibility Study & PIECES Framework](#-feasibility-study--pieces-framework)
+6. [System Architecture](#-system-architecture)
+7. [User Flow](#-user-flow)
+8. [Software Development Life Cycle (SDLC)](#-software-development-life-cycle-sdlc)
+9. [Tech Stack](#-tech-stack)
+10. [Setup & Installation](#-setup--installation)
+11. [How to Close](#-how-to-close)
+12. [For Learners: How I Built This Project](#-for-learners-how-i-built-this-project)
+13. [License](#-license)
+14. [Thank You](#-thank-you)
 
 ---
 
@@ -55,7 +57,34 @@ Informed by a study of [worldmonitor](https://github.com/koala73/worldmonitor)'s
 - **Honest signals**: every payload carries a confidence level, bar counts, data age, and a delayed-feed flag. `uv run python backtest.py SPY QQQ` replays the exact live scoring rule over historical daily bars so you can see its real hit rate before trusting it.
 - **Reliability**: the Polygon feed auto-reconnects with backoff and falls back to REST polling on plans without websocket access; `GET /health` reports per-source freshness; the watchlist persists across refreshes (localStorage + shareable `?tickers=` URL).
 
-> **Disclaimer**: QuantEdge is a research and decision-support tool, not a trading signal system. Signals and AI notes are educational context — no output guarantees profitable trades.
+### 🔔 Notifications & Daily Digest
+
+Inspired by [daily_stock_analysis](https://github.com/ZhuLinsen/daily_stock_analysis) (MIT), QuantEdge can push to Telegram or Discord which are both free:
+
+```env
+# add to backend/.env (either channel, or both)
+TELEGRAM_BOT_TOKEN=123:abc
+TELEGRAM_CHAT_ID=123456
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+```
+
+- **Signal-change alerts**: while the server runs, a tracked ticker flipping signal (e.g. Hold → Strong Buy) pushes `⚡ EWJ: Hold → Strong Buy @ $94.46 · regime Neutral` (15-min per-ticker cooldown against flapping).
+- **Daily digest, no server needed**: `uv run python daily_digest.py SPY QQQ` scores the watchlist on daily bars, adds the regime verdict and a one-paragraph AI summary, and pushes it. The included GitHub Actions workflow (`.github/workflows/daily-digest.yml`) runs it free every weekday after US close — add your keys to repo Secrets and set a `WATCHLIST` repository variable.
+- The AI analyst note now also includes DSA-style **reference levels** (entry/stop/target anchored to real SMAs and the 20-day range) and a **pre-trade checklist**.
+
+> **Disclaimer**: QuantEdge is a research and decision-support tool, not a trading signal system. Signals and AI notes are educational context, no output guarantees profitable trades.
+
+---
+
+## 🌍 V2.1: World Map
+
+Also inspired by [worldmonitor](https://github.com/koala73/worldmonitor)'s map engine (the same MIT-licensed `react-globe.gl`, not their AGPL data or code): a `/map` route with a 3D globe showing 25 major stock exchanges, hand-curated from public sources.
+
+- **Live open/closed status**: computed client-side from each exchange's IANA timezone — no backend calls. Lunch breaks (Tokyo, Shanghai, Hong Kong, Bangkok, Jakarta) and Sun–Thu trading weeks (Tadawul, TASE) are modeled; NYSE/NASDAQ carry a real 2026–27 US market holiday calendar with early-close days.
+- **Regime-tinted globe**: the atmosphere glow follows the same `/regime` verdict as the dashboard — green Risk-On, red Risk-Off.
+- **Session ribbon**: an Asia-Pacific → Europe·MEA → Americas strip showing how many markets are open per region right now.
+- **Trade assistance, not just a poster**: click any exchange → detail panel with local time and session hours → **"Track [ETF]"** maps it to a US-listed country ETF (Tokyo → EWJ, London → EWU, Mumbai → INDA, …) → it flows straight into the existing Polygon feed, signal engine, regime gate, and Gemini analyst. Tracked exchanges show their live signal right on the globe.
+- Lazy-loaded (`React.lazy`) so the ~530 KB gzipped globe/three.js bundle never loads on the main dashboard.
 
 ---
 
@@ -123,8 +152,9 @@ This project followed an **Agile / Iterative** SDLC methodology:
 
 - **Backend**: Python, FastAPI, Uvicorn, Pandas, `ta` (Technical Analysis library)
 - **AI Integration**: Google GenAI SDK (`gemini-2.5-flash`)
-- **Frontend**: React, Vite, Recharts, Vanilla CSS (Glassmorphism)
-- **Data Source**: Polygon.io (WebSocket Tick Data & REST Aggregates)
+- **Frontend**: React, React Router, Vite, Recharts, react-globe.gl (Three.js), Lucide icons, Vanilla CSS (Glassmorphism)
+- **Data Sources**: Polygon.io (WebSocket/REST), Yahoo Finance (headlines & VIX), FRED (yield spread), CNN Fear & Greed, Natural Earth (map topology)
+- **Automation**: GitHub Actions (daily digest), Telegram/Discord webhooks
 
 ---
 
@@ -139,6 +169,11 @@ This project utilizes a "Bring Your Own Key" architecture. Anyone can clone this
   ```env
   POLYGON_API_KEY=your_polygon_key
   GEMINI_API_KEY=your_gemini_key
+
+  # Optional — push signal-change alerts to Telegram and/or Discord (see Notifications above)
+  TELEGRAM_BOT_TOKEN=123:abc
+  TELEGRAM_CHAT_ID=123456
+  DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
   ```
 
 ### 1. Install & Start the Backend (FastAPI)

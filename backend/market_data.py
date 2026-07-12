@@ -10,6 +10,7 @@ from polygon import RESTClient, WebSocketClient
 from fastapi import WebSocket
 
 from news import get_headlines
+import notify
 
 load_dotenv()
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
@@ -161,11 +162,16 @@ class MarketEngine:
 
             # Trend from daily bars
             sma_50 = sma_200 = None
+            high_20d = low_20d = None
             daily = self.daily_data.get(ticker)
             if daily is not None and len(daily) >= 200:
                 closes = daily['close']
                 sma_50 = closes.rolling(50).mean().iloc[-1]
                 sma_200 = closes.rolling(200).mean().iloc[-1]
+            if daily is not None and len(daily) >= 20:
+                tail = daily['close'].tail(20)
+                high_20d = round(float(tail.max()), 2)
+                low_20d = round(float(tail.min()), 2)
 
             prev_macd_diff = df.iloc[-2]['macd_diff'] if len(df) > 1 else None
             score, signal = score_signal(latest['rsi'], latest['macd_diff'],
@@ -192,6 +198,8 @@ class MarketEngine:
                 "sma_50": round(float(sma_50), 2) if sma_50 is not None and pd.notna(sma_50) else None,
                 "sma_200": round(float(sma_200), 2) if sma_200 is not None and pd.notna(sma_200) else None,
                 "current_price": latest['close'],
+                "high_20d": high_20d,
+                "low_20d": low_20d,
                 "timestamp": int(latest.name.timestamp() * 1000) if pd.notna(latest.name) else None,
                 "bars_5m": bars_5m,
                 "bars_daily": bars_daily,
@@ -242,20 +250,23 @@ class MarketEngine:
         - Current price: ${indicators.get('current_price')}
         - Intraday momentum (5-minute bars): RSI(14) = {indicators.get('rsi')}, MACD = {indicators.get('macd')}
         - Daily trend: SMA(50) = ${indicators.get('sma_50')}, SMA(200) = ${indicators.get('sma_200')}
+        - 20-day close range: ${indicators.get('low_20d')} – ${indicators.get('high_20d')}
         - Rule-based signal: {indicators.get('signal')} (score {indicators.get('score')})
         - Data confidence: {indicators.get('confidence')} (15-minute delayed feed)
         - Market regime: {regime.get('verdict', 'Unknown')} ({component_notes})
         - Recent headlines:
         {headline_block}
 
-        Respond as plain text (no markdown, no asterisks), 120 words maximum, with each section on its own line in EXACTLY this structure:
+        Respond as plain text (no markdown, no asterisks), 170 words maximum, with each section on its own line in EXACTLY this structure:
         Read: what the indicator math says (overbought/oversold, momentum, trend).
         Context: how the market regime and headlines support or conflict with that read.
+        Levels: reference entry, stop-loss and target prices, each derived from a number given above (current price, a daily SMA, or the 20-day range) with its basis named in parentheses. If the signal is Hold, write "no actionable setup".
         Confirmation: one concrete thing that would confirm the signal.
         Invalidation: one concrete thing that would prove the signal wrong.
+        Checklist: two short pre-trade checks (e.g. position size vs confidence, regime alignment, upcoming events).
         Horizon: same-day, multi-day, or longer-term.
 
-        Rules: reference only the data above, no invented numbers, no investment advice, no preamble.
+        Rules: use only numbers given above, never invent prices, no investment advice, no preamble.
         """
 
         try:
@@ -305,6 +316,8 @@ def handle_msg(msgs):
 
             engine.add_live_tick(ticker, price, ts)
             indicators = engine.calculate_indicators(ticker)
+            notify.maybe_notify_signal_change(
+                ticker, indicators.get("signal"), price, engine.regime.get("verdict", "Unknown"))
 
             payload = {
                 "ticker": ticker,
@@ -350,6 +363,8 @@ def start_rest_polling(loop):
                     engine.last_ws_msg = time.time()
                     engine.add_live_tick(ticker, bar.close, bar.timestamp)
                     indicators = engine.calculate_indicators(ticker)
+                    notify.maybe_notify_signal_change(
+                        ticker, indicators.get("signal"), bar.close, engine.regime.get("verdict", "Unknown"))
                     payload = {"ticker": ticker, "price": bar.close, "timestamp": bar.timestamp, **indicators}
                     if main_loop and manager.active_connections.get(ticker):
                         asyncio.run_coroutine_threadsafe(manager.broadcast(ticker, payload), main_loop)
