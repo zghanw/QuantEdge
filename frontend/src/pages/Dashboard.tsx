@@ -1,12 +1,47 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ETFCard } from '../components/ETFCard';
 import ArchitectureModal from '../components/ArchitectureModal';
+import { RegimeBanner, type Regime } from '../components/RegimeBanner';
 import './Dashboard.css';
 
+const loadTickers = (): string[] => {
+  const fromUrl = new URLSearchParams(window.location.search).get('tickers');
+  if (fromUrl) {
+    return [...new Set(fromUrl.split(',').map(t => t.trim().toUpperCase()).filter(Boolean))];
+  }
+  try {
+    return JSON.parse(localStorage.getItem('quantedge.tickers') || '[]');
+  } catch {
+    return [];
+  }
+};
+
 const Dashboard: React.FC = () => {
-  const [tickers, setTickers] = useState<string[]>([]);
+  const [tickers, setTickers] = useState<string[]>(loadTickers);
   const [newTicker, setNewTicker] = useState('');
   const [isArchOpen, setIsArchOpen] = useState(false);
+  const [regime, setRegime] = useState<Regime | null>(null);
+
+  // Persist the watchlist across refreshes (localStorage + shareable URL)
+  useEffect(() => {
+    localStorage.setItem('quantedge.tickers', JSON.stringify(tickers));
+    const url = new URL(window.location.href);
+    if (tickers.length) url.searchParams.set('tickers', tickers.join(','));
+    else url.searchParams.delete('tickers');
+    window.history.replaceState(null, '', url);
+  }, [tickers]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchRegime = () =>
+      fetch('http://localhost:8000/regime')
+        .then(r => r.json())
+        .then(r => { if (!cancelled) setRegime(r); })
+        .catch(() => {});
+    fetchRegime();
+    const id = setInterval(fetchRegime, 5 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   const handleAddTicker = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,16 +63,16 @@ const Dashboard: React.FC = () => {
             QuantEdge Analyst
           </div>
           <div className="nav-actions">
-            <button 
-              className="arch-btn" 
+            <button
+              className="arch-btn"
               onClick={() => setIsArchOpen(true)}
             >
               View Architecture
             </button>
             <form onSubmit={handleAddTicker} className="search-form">
-              <input 
-                type="text" 
-                placeholder="Add Ticker (e.g. SPY)" 
+              <input
+                type="text"
+                placeholder="Add Ticker (e.g. SPY)"
                 className="search-input"
                 value={newTicker}
                 onChange={(e) => setNewTicker(e.target.value)}
@@ -54,12 +89,15 @@ const Dashboard: React.FC = () => {
           <p className="dashboard-subtitle">Track real-time signals powered by QuantEdge.</p>
         </header>
 
+        <RegimeBanner regime={regime} />
+
         <div className="etf-grid">
           {tickers.map(ticker => (
-            <ETFCard 
-              key={ticker} 
-              ticker={ticker} 
+            <ETFCard
+              key={ticker}
+              ticker={ticker}
               onRemove={handleRemoveTicker}
+              regimeVerdict={regime?.verdict ?? null}
             />
           ))}
           {tickers.length === 0 && (
@@ -70,7 +108,7 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       </main>
-      
+
       <ArchitectureModal isOpen={isArchOpen} onClose={() => setIsArchOpen(false)} />
     </div>
   );

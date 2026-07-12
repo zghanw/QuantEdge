@@ -6,9 +6,13 @@ import './ETFCard.css';
 interface ETFCardProps {
     ticker: string;
     onRemove: (ticker: string) => void;
+    regimeVerdict: string | null;
 }
 
-export const ETFCard: React.FC<ETFCardProps> = ({ ticker, onRemove }) => {
+const formatAge = (seconds: number) =>
+    seconds < 90 ? `${Math.round(seconds)}s` : `${Math.round(seconds / 60)}m`;
+
+export const ETFCard: React.FC<ETFCardProps> = ({ ticker, onRemove, regimeVerdict }) => {
     const data = useMarketData(ticker);
 
     const getSignalClass = (signal: string) => {
@@ -19,6 +23,11 @@ export const ETFCard: React.FC<ETFCardProps> = ({ ticker, onRemove }) => {
         if (signal === 'Loading...' || signal === 'Waiting for data') return 'signal-loading';
         return 'signal-neutral';
     };
+
+    const bullish = data.signal === 'Strong Buy' || data.signal === 'Accumulate';
+    const bearish = data.signal === 'Strong Sell' || data.signal === 'Reduce';
+    const counterRegime =
+        (bullish && regimeVerdict === 'Risk-Off') || (bearish && regimeVerdict === 'Risk-On');
 
     return (
         <div className="etf-card glass-panel horizontal">
@@ -36,9 +45,28 @@ export const ETFCard: React.FC<ETFCardProps> = ({ ticker, onRemove }) => {
                         <p className="etf-price">
                             {data.price ? `$${data.price.toFixed(2)}` : '---'}
                         </p>
+                        <p className="etf-meta">
+                            <span className={`confidence-chip confidence-${data.confidence ?? 'low'}`}>
+                                {data.confidence ?? '--'} confidence
+                            </span>
+                            <span className="feed-note">
+                                15-min delayed
+                                {data.dataAgeSeconds != null ? ` · tick ${formatAge(data.dataAgeSeconds)} ago` : ''}
+                            </span>
+                        </p>
                     </div>
-                    <div className={`etf-signal ${getSignalClass(data.signal)}`}>
-                        {data.signal}
+                    <div className="etf-signal-stack">
+                        <div className={`etf-signal ${getSignalClass(data.signal)}`}>
+                            {data.signal}
+                        </div>
+                        {counterRegime && (
+                            <div
+                                className="counter-regime-badge"
+                                title={`This ${bullish ? 'bullish' : 'bearish'} signal runs against the current ${regimeVerdict} market regime — size conviction accordingly.`}
+                            >
+                                ⚠ counter-regime
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -72,25 +100,25 @@ export const ETFCard: React.FC<ETFCardProps> = ({ ticker, onRemove }) => {
             <div className="etf-col etf-col-metrics">
                 <div className="etf-metrics">
                     <div className="metric-box">
-                        <span className="metric-label">RSI (14)</span>
+                        <span className="metric-label">RSI (14 · 5m)</span>
                         <span className={`metric-value ${data.rsi && data.rsi < 30 ? 'text-positive' : data.rsi && data.rsi > 70 ? 'text-negative' : ''}`}>
                             {data.rsi !== null ? data.rsi.toFixed(2) : '--'}
                         </span>
                     </div>
                     <div className="metric-box">
-                        <span className="metric-label">MACD</span>
+                        <span className="metric-label">MACD (5m)</span>
                         <span className={`metric-value ${data.macd && data.macd > 0 ? 'text-positive' : 'text-negative'}`}>
                             {data.macd !== null ? data.macd.toFixed(2) : '--'}
                         </span>
                     </div>
                     <div className="metric-box">
-                        <span className="metric-label">SMA (50)</span>
+                        <span className="metric-label">SMA (50 · 1D)</span>
                         <span className="metric-value">
                             {data.sma_50 !== null ? `$${data.sma_50.toFixed(2)}` : '--'}
                         </span>
                     </div>
                     <div className="metric-box">
-                        <span className="metric-label">SMA (200)</span>
+                        <span className="metric-label">SMA (200 · 1D)</span>
                         <span className="metric-value">
                             {data.sma_200 !== null ? `$${data.sma_200.toFixed(2)}` : '--'}
                         </span>
@@ -115,6 +143,21 @@ export const ETFCard: React.FC<ETFCardProps> = ({ ticker, onRemove }) => {
                         </div>
                     )}
                 </div>
+                {data.headlines.length > 0 && (
+                    <div className="headlines">
+                        {data.headlines.slice(0, 3).map((h, i) => (
+                            <a
+                                key={i}
+                                href={h.link || undefined}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="headline-link"
+                            >
+                                {h.title}
+                            </a>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

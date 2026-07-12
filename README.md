@@ -45,6 +45,20 @@ To democratize high-frequency algorithmic market intelligence by building a ligh
 
 ---
 
+## 🆕 V2: Regime & Context Upgrade
+
+Informed by a study of [worldmonitor](https://github.com/koala73/worldmonitor)'s finance stack, V2 upgrades accuracy, context, and reliability — all on free, keyless data sources:
+
+- **Market Regime banner**: a composite Risk-On / Neutral / Risk-Off verdict from five independent signals — SPY vs its 200-day average (Polygon), watchlist breadth, VIX (Yahoo Finance), the 10Y-2Y yield spread (FRED), and CNN Fear & Greed. Per-ticker signals that fight the regime get a ⚠ counter-regime warning.
+- **True daily golden cross**: SMA 50/200 is now computed on daily bars (RSI/MACD stay on 5-minute bars for intraday momentum), and live ticks build proper 5-minute candles instead of mutating history.
+- **AI analyst v2**: the Gemini note follows a strict Read / Context / Confirmation / Invalidation / Horizon structure, grounded in live per-ticker headlines (Yahoo Finance RSS) and the current market regime.
+- **Honest signals**: every payload carries a confidence level, bar counts, data age, and a delayed-feed flag. `uv run python backtest.py SPY QQQ` replays the exact live scoring rule over historical daily bars so you can see its real hit rate before trusting it.
+- **Reliability**: the Polygon feed auto-reconnects with backoff and falls back to REST polling on plans without websocket access; `GET /health` reports per-source freshness; the watchlist persists across refreshes (localStorage + shareable `?tickers=` URL).
+
+> **Disclaimer**: QuantEdge is a research and decision-support tool, not a trading signal system. Signals and AI notes are educational context — no output guarantees profitable trades.
+
+---
+
 ## 📊 Market Analysis & Business Model
 
 ### Market Analysis
@@ -79,7 +93,7 @@ This project operates on an **Open-Source / Bring Your Own Key (BYOK)** model.
 Our architecture is strictly separated into a stateless high-performance backend and a reactive frontend:
 
 1. **Real-Time Pipeline**: A multiplexed WebSocket connection manager built with FastAPI streams live tick data directly from Polygon.io to the React frontend, bypassing free-tier REST API rate limits.
-2. **Quantitative Engine**: As live data ticks in, Pandas and technical analysis (`ta`) libraries continuously recalculate Moving Average Crossovers (50/200), MACD momentum, and RSI oscillators on the fly to generate dynamic Buy/Sell/Hold signals.
+2. **Quantitative Engine**: As live data ticks in, Pandas and technical analysis (`ta`) libraries continuously recalculate Moving Average Crossovers (50/200 on daily bars), MACD momentum, and RSI oscillators (on 5-minute bars) to generate dynamic Buy/Sell/Hold signals, cross-checked against a five-signal Market Regime composite.
 3. **Generative AI Loop**: An asynchronous background thread runs independently on the backend. When a user clicks "Refresh", it pings the Google Gemini API with the latest indicator math to generate and broadcast human-readable algorithmic interpretations over the two-way WebSocket connection.
 
 ---

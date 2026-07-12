@@ -1,0 +1,9 @@
+# AI research working notes (local only)
+research-*.md
+
+# Safety nets — also covered by backend/ and frontend/ .gitignore
+.env
+__pycache__/
+node_modules/
+dist/
+.DS_Store

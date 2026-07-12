@@ -1,0 +1,52 @@
+.regime-banner {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 0.9rem 1.5rem;
+  border-radius: 16px;
+  margin-bottom: 2rem;
+  border: 1px solid var(--border-glass);
+  background: var(--bg-secondary);
+}
+
+.regime-verdict {
+  font-weight: 700;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.regime-on .regime-verdict { color: #34d399; text-shadow: 0 0 12px rgba(52, 211, 153, 0.4); }
+.regime-off .regime-verdict { color: #fb7185; text-shadow: 0 0 12px rgba(251, 113, 133, 0.4); }
+.regime-neutral .regime-verdict { color: var(--text-secondary); }
+.regime-unknown .regime-verdict { color: var(--text-muted); }
+
+.regime-on { border-color: rgba(52, 211, 153, 0.3); }
+.regime-off { border-color: rgba(251, 113, 133, 0.3); }
+
+.regime-detail {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.regime-components {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.regime-chip {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.chip-pos { color: #34d399; border-color: rgba(52, 211, 153, 0.25); }
+.chip-neg { color: #fb7185; border-color: rgba(251, 113, 133, 0.25); }
+.chip-flat { color: var(--text-muted); }
