@@ -1,52 +1,55 @@
 .regime-banner {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.25rem;
   flex-wrap: wrap;
-  padding: 0.9rem 1.5rem;
-  border-radius: 16px;
-  margin-bottom: 2rem;
+  padding: 0.8rem 1.25rem;
+  border-radius: var(--border-radius-lg);
+  margin-bottom: 1.75rem;
   border: 1px solid var(--border-glass);
   background: var(--bg-secondary);
 }
 
 .regime-verdict {
-  font-weight: 700;
-  font-size: 1rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
 }
 
-.regime-on .regime-verdict { color: #34d399; text-shadow: 0 0 12px rgba(52, 211, 153, 0.4); }
-.regime-off .regime-verdict { color: #fb7185; text-shadow: 0 0 12px rgba(251, 113, 133, 0.4); }
+.regime-on .regime-verdict { color: var(--positive); }
+.regime-off .regime-verdict { color: var(--negative); }
 .regime-neutral .regime-verdict { color: var(--text-secondary); }
 .regime-unknown .regime-verdict { color: var(--text-muted); }
 
-.regime-on { border-color: rgba(52, 211, 153, 0.3); }
-.regime-off { border-color: rgba(251, 113, 133, 0.3); }
+.regime-on { border-color: rgba(74, 222, 128, 0.3); }
+.regime-off { border-color: rgba(248, 113, 113, 0.3); }
 
 .regime-detail {
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
 }
 
 .regime-components {
   display: flex;
-  gap: 0.6rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 .regime-chip {
-  font-size: 0.75rem;
-  padding: 0.3rem 0.7rem;
-  border-radius: 20px;
-  background: rgba(0, 0, 0, 0.2);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0.28rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-glass);
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
-.chip-pos { color: #34d399; border-color: rgba(52, 211, 153, 0.25); }
-.chip-neg { color: #fb7185; border-color: rgba(251, 113, 133, 0.25); }
+.chip-pos { color: var(--positive); border-color: rgba(74, 222, 128, 0.25); }
+.chip-neg { color: var(--negative); border-color: rgba(248, 113, 113, 0.25); }
 .chip-flat { color: var(--text-muted); }

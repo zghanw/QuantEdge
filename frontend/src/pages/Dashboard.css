@@ -6,40 +6,39 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  padding: 1rem 0;
+  padding: 0.9rem 0;
   border-radius: 0;
   border-top: none;
   border-left: none;
   border-right: none;
+  background: rgba(10, 10, 10, 0.92);
+}
+
+.nav-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.logo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  min-width: 0;
 }
 
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
-}
-
-.arch-btn {
-  background: rgba(0, 240, 255, 0.1);
-  color: var(--accent-cyan);
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  border-radius: 30px;
-  padding: 0.5rem 1.2rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  transition: all var(--transition-fast);
-}
-
-.arch-btn:hover {
-  background: rgba(0, 240, 255, 0.2);
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
-  transform: translateY(-2px);
-}
-
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  gap: 0.75rem;
 }
 
 .search-form {
@@ -48,33 +47,39 @@
 }
 
 .search-input {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-glass);
-  border-radius: 30px;
-  padding: 0.5rem 1rem 0.5rem 1.2rem;
+  border-radius: var(--border-radius-sm);
+  padding: 0.5rem 2rem 0.5rem 0.9rem;
   color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
   width: 200px;
   outline: none;
-  transition: var(--transition-fast);
+  transition: border-color var(--transition-fast);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
 }
 
 .search-input:focus {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+  border-color: var(--accent);
 }
 
 .search-btn {
   position: absolute;
-  right: 12px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted);
-  font-size: 1.2rem;
-  transition: var(--transition-fast);
+  font-size: 1.1rem;
+  transition: color var(--transition-fast);
 }
 
 .search-btn:hover {
-  color: var(--accent-cyan);
+  color: var(--accent);
 }
 
 .dashboard-main {
@@ -82,23 +87,25 @@
 }
 
 .dashboard-header {
-  margin-bottom: 2rem;
+  margin-bottom: 1.75rem;
 }
 
 .dashboard-title {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.35rem;
 }
 
 .dashboard-subtitle {
-  color: var(--text-secondary);
+  color: var(--text-muted);
+  font-size: 0.95rem;
 }
 
 .etf-grid {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .empty-state {
@@ -106,4 +113,10 @@
   padding: 4rem 2rem;
   grid-column: 1 / -1;
   color: var(--text-secondary);
+}
+
+.empty-state h3 {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  color: var(--text-primary);
 }

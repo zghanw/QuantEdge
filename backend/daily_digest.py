@@ -114,7 +114,7 @@ def main():
     regime = compute_regime(engine, fake_manager, rest_client)
 
     lines = [
-        f"📊 QuantEdge Daily Digest — {today_et}",
+        f"📊 Quantily Daily Digest — {today_et}",
         f"Regime: {regime['verdict']} (score {regime['score']})",
         "",
     ]

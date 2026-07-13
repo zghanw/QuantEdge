@@ -1,4 +1,4 @@
-"""Replay the QuantEdge scoring rule over historical daily bars.
+"""Replay the Quantily scoring rule over historical daily bars.
 
 Answers: if you had held long every day the score said Accumulate/Strong Buy
 (score >= 1) and stayed in cash otherwise, what would have happened?

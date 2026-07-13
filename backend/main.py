@@ -57,7 +57,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], a
 
 @app.get("/")
 def read_root():
-    return {"status": "ok", "message": "QuantEdge Engine Online"}
+    return {"status": "ok", "message": "Quantily Engine Online"}
 
 @app.get("/regime")
 def get_regime():

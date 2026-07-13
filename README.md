@@ -1,4 +1,4 @@
-# QuantEdge Analyst
+# Quantily
 
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![Vite](https://img.shields.io/badge/Vite-B73BFE?style=for-the-badge&logo=vite&logoColor=FFD62E)
@@ -43,7 +43,7 @@ Retail investors often lack access to institutional-grade, real-time quantitativ
 To democratize high-frequency algorithmic market intelligence by building a lightweight, highly responsive web application that translates raw tick data into plain-English financial insights in real-time.
 
 ### The Solution
-**QuantEdge Analyst** combines a real-time WebSocket data pipeline (Polygon.io) with a backend Quantitative Engine (Pandas). Instead of forcing users to manually interpret charts, the system feeds live mathematical data to an integrated Generative AI (Google Gemini 2.5 Flash), which produces instant, human-readable market interpretations exactly when needed.
+**Quantily** combines a real-time WebSocket data pipeline (Polygon.io) with a backend Quantitative Engine (Pandas). Instead of forcing users to manually interpret charts, the system feeds live mathematical data to an integrated Generative AI (Google Gemini 2.5 Flash), which produces instant, human-readable market interpretations exactly when needed.
 
 ---
 
@@ -59,7 +59,7 @@ Informed by a study of [worldmonitor](https://github.com/koala73/worldmonitor)'s
 
 ### 🔔 Notifications & Daily Digest
 
-Inspired by [daily_stock_analysis](https://github.com/ZhuLinsen/daily_stock_analysis) (MIT), QuantEdge can push to Telegram or Discord which are both free:
+Inspired by [daily_stock_analysis](https://github.com/ZhuLinsen/daily_stock_analysis) (MIT), Quantily can push to Telegram or Discord which are both free:
 
 ```env
 # add to backend/.env (either channel, or both)
@@ -72,7 +72,7 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 - **Daily digest, no server needed**: `uv run python daily_digest.py SPY QQQ` scores the watchlist on daily bars, adds the regime verdict and a one-paragraph AI summary, and pushes it. The included GitHub Actions workflow (`.github/workflows/daily-digest.yml`) runs it free every weekday after US close — add your keys to repo Secrets and set a `WATCHLIST` repository variable.
 - The AI analyst note now also includes DSA-style **reference levels** (entry/stop/target anchored to real SMAs and the 20-day range) and a **pre-trade checklist**.
 
-> **Disclaimer**: QuantEdge is a research and decision-support tool, not a trading signal system. Signals and AI notes are educational context, no output guarantees profitable trades.
+> **Disclaimer**: Quantily is a research and decision-support tool, not a trading signal system. Signals and AI notes are educational context, no output guarantees profitable trades.
 
 ---
 

@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Globe } from 'lucide-react';
 import { ETFCard } from '../components/ETFCard';
-import ArchitectureModal from '../components/ArchitectureModal';
+import { NavTabs } from '../components/NavTabs';
 import { RegimeBanner, type Regime } from '../components/RegimeBanner';
 import { loadTickers as loadStoredTickers, saveTickers } from '../lib/watchlist';
 import './Dashboard.css';
@@ -18,7 +16,6 @@ const loadTickers = (): string[] => {
 const Dashboard: React.FC = () => {
   const [tickers, setTickers] = useState<string[]>(loadTickers);
   const [newTicker, setNewTicker] = useState('');
-  const [isArchOpen, setIsArchOpen] = useState(false);
   const [regime, setRegime] = useState<Regime | null>(null);
 
   // Persist the watchlist across refreshes (localStorage + shareable URL)
@@ -58,37 +55,29 @@ const Dashboard: React.FC = () => {
     <div className="dashboard-layout">
       <nav className="dashboard-nav glass-panel">
         <div className="container nav-content">
-          <div className="logo text-gradient">
-            QuantEdge Analyst
+          <div className="nav-left">
+            <div className="logo text-gradient">
+              Quantily
+            </div>
+            <NavTabs />
           </div>
-          <div className="nav-actions">
-            <Link to="/map" className="arch-btn icon-btn">
-              <Globe size={15} aria-hidden="true" /> World Map
-            </Link>
-            <button
-              className="arch-btn"
-              onClick={() => setIsArchOpen(true)}
-            >
-              View Architecture
-            </button>
-            <form onSubmit={handleAddTicker} className="search-form">
-              <input
-                type="text"
-                placeholder="Add Ticker (e.g. SPY)"
-                className="search-input"
-                value={newTicker}
-                onChange={(e) => setNewTicker(e.target.value)}
-              />
-              <button type="submit" className="search-btn">+</button>
-            </form>
-          </div>
+          <form onSubmit={handleAddTicker} className="search-form">
+            <input
+              type="text"
+              placeholder="Add Ticker (e.g. SPY)"
+              className="search-input"
+              value={newTicker}
+              onChange={(e) => setNewTicker(e.target.value)}
+            />
+            <button type="submit" className="search-btn">+</button>
+          </form>
         </div>
       </nav>
 
       <main className="container dashboard-main">
         <header className="dashboard-header">
           <h2 className="dashboard-title">Live Algorithmic Market Intelligence</h2>
-          <p className="dashboard-subtitle">Track real-time signals powered by QuantEdge.</p>
+          <p className="dashboard-subtitle">Track real-time signals powered by Quantily.</p>
         </header>
 
         <RegimeBanner regime={regime} />
@@ -110,8 +99,6 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       </main>
-
-      <ArchitectureModal isOpen={isArchOpen} onClose={() => setIsArchOpen(false)} />
     </div>
   );
 };

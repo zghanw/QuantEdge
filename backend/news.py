@@ -3,7 +3,7 @@ import time
 import urllib.request
 import xml.etree.ElementTree as ET
 
-UA = {"User-Agent": "Mozilla/5.0 (QuantEdge personal research dashboard)"}
+UA = {"User-Agent": "Mozilla/5.0 (Quantily personal research dashboard)"}
 TTL_SECONDS = 900
 _cache: dict = {}  # ticker -> (fetched_at, [{title, link, published}])
 

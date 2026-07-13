@@ -76,13 +76,13 @@ export const ETFCard: React.FC<ETFCardProps> = ({ ticker, onRemove, regimeVerdic
                             <LineChart data={data.history}>
                                 <YAxis domain={['auto', 'auto']} hide />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: '#1a1d2d', border: 'none', borderRadius: '8px', color: '#fff' }}
-                                    itemStyle={{ color: '#00f0ff' }}
+                                    contentStyle={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.16)', borderRadius: '8px', color: '#fafafa', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+                                    itemStyle={{ color: '#4ade80' }}
                                 />
                                 <Line
                                     type="monotone"
                                     dataKey="price"
-                                    stroke="#00f0ff"
+                                    stroke="#4ade80"
                                     strokeWidth={2}
                                     dot={false}
                                     isAnimationActive={false}

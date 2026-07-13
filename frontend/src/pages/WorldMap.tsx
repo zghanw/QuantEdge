@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Globe from 'react-globe.gl';
 import { feature } from 'topojson-client';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, X, Plus, Check } from 'lucide-react';
+import { X, Plus, Check } from 'lucide-react';
+import { NavTabs } from '../components/NavTabs';
 import { EXCHANGES, type Exchange, type Region } from '../config/exchanges';
 import { getMarketStatus, type MarketStatus } from '../lib/marketHours';
 import { loadTickers, addTicker } from '../lib/watchlist';
@@ -12,15 +13,16 @@ import './WorldMap.css';
 const API = 'http://localhost:8000';
 
 const STATUS_COLOR: Record<MarketStatus['state'], string> = {
-    open: '#34d399',
+    open: '#4ade80',
     lunch: '#fbbf24',
-    closed: '#5b6478',
+    closed: '#525252',
 };
 const TIER_ALT: Record<Exchange['tier'], number> = { mega: 0.10, major: 0.07, regional: 0.045 };
 const TIER_RADIUS: Record<Exchange['tier'], number> = { mega: 0.55, major: 0.42, regional: 0.32 };
 
-// Atmosphere follows the dashboard's market-regime verdict
-const REGIME_TINT: Record<string, string> = { 'Risk-On': '#34d399', 'Risk-Off': '#fb7185' };
+// Atmosphere follows the dashboard's market-regime verdict; neutral is a soft blue
+const REGIME_TINT: Record<string, string> = { 'Risk-On': '#4ade80', 'Risk-Off': '#f87171' };
+const ATMOSPHERE_DEFAULT = '#3b82f6';
 
 // Follows the sun: Asia-Pacific opens first, the Americas close the day
 const REGIONS: { key: Region; label: string }[] = [
@@ -133,7 +135,7 @@ const WorldMap = () => {
     }, [reducedMotion]);
 
     const pointColor = useCallback((ex: any) => {
-        if (ex.etf && tracked.includes(ex.etf)) return '#00f0ff';
+        if (ex.etf && tracked.includes(ex.etf)) return '#3b82f6';
         return STATUS_COLOR[statuses[ex.id].state];
     }, [statuses, tracked]);
 
@@ -156,8 +158,11 @@ const WorldMap = () => {
     return (
         <div className="map-page">
             <nav className="dashboard-nav glass-panel">
-                <div className="container nav-content map-nav-content">
-                    <Link to="/" className="logo text-gradient">QuantEdge Analyst</Link>
+                <div className="container nav-content">
+                    <div className="nav-left">
+                        <Link to="/" className="logo text-gradient">Quantily</Link>
+                        <NavTabs />
+                    </div>
                     <div className="nav-actions">
                         <select
                             className="exchange-select"
@@ -173,9 +178,6 @@ const WorldMap = () => {
                                 <option key={ex.id} value={ex.id}>{ex.shortName} — {ex.city}</option>
                             ))}
                         </select>
-                        <Link to="/" className="arch-btn icon-btn">
-                            <ArrowLeft size={15} aria-hidden="true" /> Dashboard
-                        </Link>
                     </div>
                 </div>
             </nav>
@@ -187,12 +189,12 @@ const WorldMap = () => {
                     height={dims.h}
                     backgroundColor="rgba(0,0,0,0)"
                     showAtmosphere
-                    atmosphereColor={REGIME_TINT[regime?.verdict ?? ''] ?? '#00f0ff'}
+                    atmosphereColor={REGIME_TINT[regime?.verdict ?? ''] ?? ATMOSPHERE_DEFAULT}
                     atmosphereAltitude={0.13}
                     hexPolygonsData={countries}
                     hexPolygonResolution={3}
                     hexPolygonMargin={0.65}
-                    hexPolygonColor={() => 'rgba(125, 140, 175, 0.30)'}
+                    hexPolygonColor={() => 'rgba(163, 163, 163, 0.28)'}
                     pointsData={EXCHANGES as any[]}
                     pointColor={pointColor}
                     pointAltitude={(d: any) => TIER_ALT[d.tier as Exchange['tier']]}
@@ -200,7 +202,7 @@ const WorldMap = () => {
                     pointLabel={pointTip}
                     onPointClick={(d: any) => handleSelect(d as Exchange)}
                     ringsData={rings as any[]}
-                    ringColor={() => (t: number) => `rgba(52, 211, 153, ${Math.max(0, 0.65 * (1 - t))})`}
+                    ringColor={() => (t: number) => `rgba(74, 222, 128, ${Math.max(0, 0.65 * (1 - t))})`}
                     ringMaxRadius={3.5}
                     ringPropagationSpeed={1.6}
                     ringRepeatPeriod={1300}
