@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Globe from 'react-globe.gl';
-import { feature } from 'topojson-client';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Plus, Check } from 'lucide-react';
 import { NavTabs } from '../components/NavTabs';
+import { MarketMap } from '../components/MarketMap';
 import { EXCHANGES, type Exchange, type Region } from '../config/exchanges';
 import { getMarketStatus, type MarketStatus } from '../lib/marketHours';
 import { loadTickers, addTicker } from '../lib/watchlist';
@@ -12,17 +11,9 @@ import './WorldMap.css';
 
 const API = 'http://localhost:8000';
 
-const STATUS_COLOR: Record<MarketStatus['state'], string> = {
-    open: '#4ade80',
-    lunch: '#fbbf24',
-    closed: '#525252',
-};
-const TIER_ALT: Record<Exchange['tier'], number> = { mega: 0.10, major: 0.07, regional: 0.045 };
-const TIER_RADIUS: Record<Exchange['tier'], number> = { mega: 0.55, major: 0.42, regional: 0.32 };
-
-// Atmosphere follows the dashboard's market-regime verdict; neutral is a soft blue
+// Backdrop glow follows the dashboard's market-regime verdict; neutral is a soft blue
 const REGIME_TINT: Record<string, string> = { 'Risk-On': '#4ade80', 'Risk-Off': '#f87171' };
-const ATMOSPHERE_DEFAULT = '#3b82f6';
+const GLOW_DEFAULT = '#3b82f6';
 
 // Follows the sun: Asia-Pacific opens first, the Americas close the day
 const REGIONS: { key: Region; label: string }[] = [
@@ -36,29 +27,11 @@ const signalTone = (s: string) =>
         : s.includes('Sell') || s === 'Reduce' ? 'sig-neg' : 'sig-flat';
 
 const WorldMap = () => {
-    const globeRef = useRef<any>(null);
-    const stageRef = useRef<HTMLDivElement>(null);
-    const [countries, setCountries] = useState<any[]>([]);
-    const [dims, setDims] = useState({ w: window.innerWidth, h: window.innerHeight - 70 });
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [tracked, setTracked] = useState<string[]>(loadTickers);
     const [tick, setTick] = useState(0);
     const [regime, setRegime] = useState<{ verdict?: string } | null>(null);
     const [signals, setSignals] = useState<Record<string, any>>({});
-
-    const reducedMotion = useMemo(
-        () => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
-
-    // Land hexes from public-domain Natural Earth topology (served from /public)
-    useEffect(() => {
-        fetch('/countries-110m.json')
-            .then(r => r.json())
-            .then(topo => {
-                const features = (feature(topo, topo.objects.countries) as any).features;
-                setCountries(features.filter((f: any) => f.properties?.name !== 'Antarctica'));
-            })
-            .catch(() => {}); // globe still renders without land hexes
-    }, []);
 
     // Recompute open/closed statuses every 30s
     useEffect(() => {
@@ -81,15 +54,6 @@ const WorldMap = () => {
         return () => { cancelled = true; clearInterval(id); };
     }, []);
 
-    // Globe fills the stage
-    useEffect(() => {
-        const el = stageRef.current;
-        if (!el) return;
-        const ro = new ResizeObserver(() => setDims({ w: el.clientWidth, h: el.clientHeight }));
-        ro.observe(el);
-        return () => ro.disconnect();
-    }, []);
-
     const statuses = useMemo(() => {
         const m: Record<string, MarketStatus> = {};
         for (const ex of EXCHANGES) m[ex.id] = getMarketStatus(ex);
@@ -100,24 +64,8 @@ const WorldMap = () => {
     const openCount = Object.values(statuses).filter(s => s.state !== 'closed').length;
     const selected = EXCHANGES.find(e => e.id === selectedId) ?? null;
 
-    const rings = useMemo(
-        () => (reducedMotion ? [] : EXCHANGES.filter(ex => statuses[ex.id].state === 'open')),
-        [statuses, reducedMotion]);
-
-    const megaLabels = useMemo(() => EXCHANGES.filter(e => e.tier === 'mega'), []);
-
-    const handleSelect = useCallback((ex: Exchange) => {
-        setSelectedId(ex.id);
-        const controls = globeRef.current?.controls?.();
-        if (controls) controls.autoRotate = false;
-        globeRef.current?.pointOfView({ lat: ex.lat, lng: ex.lng, altitude: 1.7 }, reducedMotion ? 0 : 800);
-    }, [reducedMotion]);
-
-    const closePanel = useCallback(() => {
-        setSelectedId(null);
-        const controls = globeRef.current?.controls?.();
-        if (controls && !reducedMotion) controls.autoRotate = true;
-    }, [reducedMotion]);
+    const handleSelect = useCallback((ex: Exchange) => setSelectedId(ex.id), []);
+    const closePanel = useCallback(() => setSelectedId(null), []);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closePanel(); };
@@ -125,35 +73,9 @@ const WorldMap = () => {
         return () => window.removeEventListener('keydown', onKey);
     }, [closePanel]);
 
-    const onGlobeReady = useCallback(() => {
-        const controls = globeRef.current?.controls?.();
-        if (controls) {
-            controls.autoRotate = !reducedMotion;
-            controls.autoRotateSpeed = 0.4;
-        }
-        globeRef.current?.pointOfView({ lat: 25, lng: 10, altitude: 2.2 }, 0);
-    }, [reducedMotion]);
-
-    const pointColor = useCallback((ex: any) => {
-        if (ex.etf && tracked.includes(ex.etf)) return '#3b82f6';
-        return STATUS_COLOR[statuses[ex.id].state];
-    }, [statuses, tracked]);
-
-    const pointTip = useCallback((ex: any) => {
-        const st = statuses[ex.id];
-        const label = st.state === 'lunch' ? 'LUNCH BREAK'
-            : st.holiday ? 'HOLIDAY' : st.state.toUpperCase();
-        let signalRow = '';
-        const sig = ex.etf && tracked.includes(ex.etf) ? signals[ex.etf] : null;
-        if (sig?.signal && !['Waiting for data', 'Error'].includes(sig.signal)) {
-            const price = sig.current_price != null ? ` · $${Number(sig.current_price).toFixed(2)}` : '';
-            signalRow = `<br/><span class="tip-signal">${ex.etf}: ${sig.signal}${price}</span>`;
-        }
-        return `<div class="globe-tip"><b>${ex.shortName}</b> · ${ex.city}<br/>${label} · ${st.localTime} local${signalRow}</div>`;
-    }, [statuses, tracked, signals]);
-
     const selectedStatus = selected ? statuses[selected.id] : null;
     const selectedTracked = !!(selected?.etf && tracked.includes(selected.etf));
+    const glow = REGIME_TINT[regime?.verdict ?? ''] ?? GLOW_DEFAULT;
 
     return (
         <div className="map-page">
@@ -182,38 +104,22 @@ const WorldMap = () => {
                 </div>
             </nav>
 
-            <div className="map-stage" ref={stageRef}>
-                <Globe
-                    ref={globeRef}
-                    width={dims.w}
-                    height={dims.h}
-                    backgroundColor="rgba(0,0,0,0)"
-                    showAtmosphere
-                    atmosphereColor={REGIME_TINT[regime?.verdict ?? ''] ?? ATMOSPHERE_DEFAULT}
-                    atmosphereAltitude={0.13}
-                    hexPolygonsData={countries}
-                    hexPolygonResolution={3}
-                    hexPolygonMargin={0.65}
-                    hexPolygonColor={() => 'rgba(163, 163, 163, 0.28)'}
-                    pointsData={EXCHANGES as any[]}
-                    pointColor={pointColor}
-                    pointAltitude={(d: any) => TIER_ALT[d.tier as Exchange['tier']]}
-                    pointRadius={(d: any) => TIER_RADIUS[d.tier as Exchange['tier']]}
-                    pointLabel={pointTip}
-                    onPointClick={(d: any) => handleSelect(d as Exchange)}
-                    ringsData={rings as any[]}
-                    ringColor={() => (t: number) => `rgba(74, 222, 128, ${Math.max(0, 0.65 * (1 - t))})`}
-                    ringMaxRadius={3.5}
-                    ringPropagationSpeed={1.6}
-                    ringRepeatPeriod={1300}
-                    labelsData={megaLabels as any[]}
-                    labelText={(d: any) => d.shortName}
-                    labelSize={1.0}
-                    labelColor={() => 'rgba(248, 250, 252, 0.8)'}
-                    labelAltitude={0.012}
-                    labelDotOrientation={(d: any) => d.labelOrient ?? 'bottom'}
-                    onGlobeReady={onGlobeReady}
+            <div className="map-stage">
+                <div
+                    className="map-glow"
+                    aria-hidden="true"
+                    style={{ background: `radial-gradient(ellipse 60% 55% at 50% 45%, ${glow}14, transparent 70%)` }}
                 />
+
+                <div className="map-frame">
+                    <MarketMap
+                        statuses={statuses}
+                        tracked={tracked}
+                        signals={signals}
+                        selectedId={selectedId}
+                        onSelect={handleSelect}
+                    />
+                </div>
 
                 <div className="map-summary glass-panel" role="status">
                     <span className="summary-count">{openCount}</span> of {EXCHANGES.length} markets open now

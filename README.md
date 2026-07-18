@@ -78,13 +78,13 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 
 ## 🌍 V2.1: World Map
 
-Also inspired by [worldmonitor](https://github.com/koala73/worldmonitor)'s map engine (the same MIT-licensed `react-globe.gl`, not their AGPL data or code): a `/map` route with a 3D globe showing 25 major stock exchanges, hand-curated from public sources.
+A `/map` route with a Vercel-style dotted 2D world map (plain SVG, no map library) showing 25 major stock exchanges hand-curated from public sources — all visible at once, no rotation needed.
 
 - **Live open/closed status**: computed client-side from each exchange's IANA timezone — no backend calls. Lunch breaks (Tokyo, Shanghai, Hong Kong, Bangkok, Jakarta) and Sun–Thu trading weeks (Tadawul, TASE) are modeled; NYSE/NASDAQ carry a real 2026–27 US market holiday calendar with early-close days.
-- **Regime-tinted globe**: the atmosphere glow follows the same `/regime` verdict as the dashboard — green Risk-On, red Risk-Off.
-- **Session ribbon**: an Asia-Pacific → Europe·MEA → Americas strip showing how many markets are open per region right now.
-- **Trade assistance, not just a poster**: click any exchange → detail panel with local time and session hours → **"Track [ETF]"** maps it to a US-listed country ETF (Tokyo → EWJ, London → EWU, Mumbai → INDA, …) → it flows straight into the existing Polygon feed, signal engine, regime gate, and Gemini analyst. Tracked exchanges show their live signal right on the globe.
-- Lazy-loaded (`React.lazy`) so the ~530 KB gzipped globe/three.js bundle never loads on the main dashboard.
+- **Regime-tinted backdrop**: a soft glow behind the map follows the same `/regime` verdict as the dashboard — green Risk-On, red Risk-Off.
+- **Session ribbon**: an Asia-Pacific → Europe·MEA → Americas strip showing how many markets are open per region right now — the whole "follow the sun" handoff is visible in one glance.
+- **Trade assistance, not just a poster**: click any exchange → detail panel with local time and session hours → **"Track [ETF]"** maps it to a US-listed country ETF (Tokyo → EWJ, London → EWU, Mumbai → INDA, …) → it flows straight into the existing Polygon feed, signal engine, regime gate, and Gemini analyst. Tracked exchanges show their live signal right on the map.
+- The entire map page is ~5 KB gzipped (2,081 SVG land dots + markers) and keyboard-accessible — every marker is focusable.
 
 ---
 
@@ -123,7 +123,7 @@ Our architecture is strictly separated into a stateless high-performance backend
 
 1. **Real-Time Pipeline**: A multiplexed WebSocket connection manager built with FastAPI streams live tick data directly from Polygon.io to the React frontend, bypassing free-tier REST API rate limits.
 2. **Quantitative Engine**: As live data ticks in, Pandas and technical analysis (`ta`) libraries continuously recalculate Moving Average Crossovers (50/200 on daily bars), MACD momentum, and RSI oscillators (on 5-minute bars) to generate dynamic Buy/Sell/Hold signals, cross-checked against a five-signal Market Regime composite.
-3. **Generative AI Loop**: An asynchronous background thread runs independently on the backend. When a user clicks "Refresh", it pings the Google Gemini API with the latest indicator math to generate and broadcast human-readable algorithmic interpretations over the two-way WebSocket connection.
+3. **On-Demand AI Analyst**: Gemini is only called when the user clicks "AI Analysis" on a card (or "Regenerate" inside the note) — no background loops burning tokens. The backend passes the latest indicator math, market regime, and headlines to Gemini 2.5 Flash and returns a structured analyst note over the two-way WebSocket connection.
 
 ---
 
@@ -133,7 +133,7 @@ Our architecture is strictly separated into a stateless high-performance backend
 2. **Search Query**: The user inputs a US Stock or ETF ticker (e.g., `AAPL` or `SPY`).
 3. **Historical Fetch**: The backend fetches 15 days of historical data via a REST API and calculates initial indicators. It instantly packages this historical array and pushes it to the frontend to draw the initial Recharts line graph.
 4. **Live Streaming**: The backend subscribes to the Polygon live tick stream for that ticker. As new prices arrive, they are broadcast continuously to the frontend, updating the graph and metrics seamlessly.
-5. **AI Interpretation**: The user clicks the "Refresh" button in the AI column. The backend instantly passes the current live metrics to Gemini 2.5 Flash and returns an actionable summary to the UI.
+5. **AI Interpretation**: The user clicks "AI Analysis" on a card to expand the analyst note — the first open requests a fresh Gemini analysis (with a "Regenerate" button for updates); the Market Intel column always shows live headlines regardless.
 
 ---
 
@@ -152,7 +152,7 @@ This project followed an **Agile / Iterative** SDLC methodology:
 
 - **Backend**: Python, FastAPI, Uvicorn, Pandas, `ta` (Technical Analysis library)
 - **AI Integration**: Google GenAI SDK (`gemini-2.5-flash`)
-- **Frontend**: React, React Router, Vite, Recharts, react-globe.gl (Three.js), Lucide icons, Vanilla CSS (Glassmorphism)
+- **Frontend**: React, React Router, Vite, Recharts, SVG dotted world map, Lucide icons, Vanilla CSS
 - **Data Sources**: Polygon.io (WebSocket/REST), Yahoo Finance (headlines & VIX), FRED (yield spread), CNN Fear & Greed, Natural Earth (map topology)
 - **Automation**: GitHub Actions (daily digest), Telegram/Discord webhooks
 

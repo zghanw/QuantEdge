@@ -11,24 +11,6 @@ from market_data import manager, engine, rest_client, start_polygon_ws
 from news import get_headlines
 from regime import compute_regime
 
-async def gemini_analysis_loop():
-    while True:
-        active_tickers = list(manager.active_connections.keys())
-        for ticker in active_tickers:
-            if ticker in engine.historical_data:
-                indicators = engine.calculate_indicators(ticker)
-                # Run blocking generate_analysis in a thread
-                analysis = await asyncio.to_thread(engine.generate_analysis, ticker, indicators)
-
-                if analysis:
-                    await manager.broadcast(ticker, {
-                        "ticker": ticker,
-                        "type": "ai_insight",
-                        "analysis": analysis,
-                        "headlines": await asyncio.to_thread(get_headlines, ticker)
-                    })
-        await asyncio.sleep(300) # 5 minutes
-
 async def regime_loop():
     while True:
         try:
@@ -44,8 +26,8 @@ async def lifespan(app: FastAPI):
     # explicitly (get_running_loop() inside the thread would raise).
     threading.Thread(target=start_polygon_ws, args=(asyncio.get_running_loop(),), daemon=True).start()
 
-    # Background loops: Gemini analysis + market regime refresh
-    asyncio.create_task(gemini_analysis_loop())
+    # Background loop: market regime refresh.
+    # Gemini analysis is on-demand only (WS "refresh_ai" action) to save tokens.
     asyncio.create_task(regime_loop())
 
     yield
@@ -124,14 +106,6 @@ async def websocket_endpoint(websocket: WebSocket, ticker: str):
                         manager.broadcast(ticker, {"ticker": ticker, "status": "initialized", "historical_chart": chart_history, "headlines": headlines, **indicators}),
                         loop_obj
                     )
-
-                    # Fetch initial AI insight
-                    analysis = engine.generate_analysis(ticker, indicators)
-                    if analysis:
-                        asyncio.run_coroutine_threadsafe(
-                            manager.broadcast(ticker, {"ticker": ticker, "type": "ai_insight", "analysis": analysis}),
-                            loop_obj
-                        )
                 except Exception as e:
                     print(f"Fetch task error: {e}")
                 finally:

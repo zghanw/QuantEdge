@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip } from 'recharts';
+import { Sparkles, ChevronDown } from 'lucide-react';
 import { useMarketData } from '../hooks/useMarketData';
 import './ETFCard.css';
 
@@ -14,6 +15,17 @@ const formatAge = (seconds: number) =>
 
 export const ETFCard: React.FC<ETFCardProps> = ({ ticker, onRemove, regimeVerdict }) => {
     const data = useMarketData(ticker);
+    const [aiOpen, setAiOpen] = useState(false);
+
+    // First open requests an analysis; after that the button only toggles.
+    // Regenerate inside the panel is the explicit way to spend more tokens.
+    const toggleAI = () => {
+        const opening = !aiOpen;
+        setAiOpen(opening);
+        if (opening && !data.aiAnalysis && !data.aiLoading) {
+            data.requestAIRefresh?.();
+        }
+    };
 
     const getSignalClass = (signal: string) => {
         if (signal === 'Strong Buy') return 'signal-strong-positive';
@@ -126,26 +138,11 @@ export const ETFCard: React.FC<ETFCardProps> = ({ ticker, onRemove, regimeVerdic
                 </div>
             </div>
 
-            <div className="etf-col etf-col-ai">
-                <div className="ai-analyst-header">
-                    <h3>AI Technical Analyst</h3>
-                    <button className="refresh-ai-btn glass-panel" onClick={data.requestAIRefresh}>
-                        Refresh
-                    </button>
-                </div>
-                <div className="ai-content">
-                    {data.aiAnalysis ? (
-                        <p className="ai-text">{data.aiAnalysis}</p>
-                    ) : (
-                        <div className="ai-loading">
-                            <span className="pulse-dot"></span>
-                            <span>Generating analysis...</span>
-                        </div>
-                    )}
-                </div>
-                {data.headlines.length > 0 && (
+            <div className="etf-col etf-col-intel">
+                <h3 className="intel-title">Market Intel</h3>
+                {data.headlines.length > 0 ? (
                     <div className="headlines">
-                        {data.headlines.slice(0, 3).map((h, i) => (
+                        {data.headlines.slice(0, 4).map((h, i) => (
                             <a
                                 key={i}
                                 href={h.link || undefined}
@@ -157,8 +154,40 @@ export const ETFCard: React.FC<ETFCardProps> = ({ ticker, onRemove, regimeVerdic
                             </a>
                         ))}
                     </div>
+                ) : (
+                    <p className="intel-empty">No recent headlines.</p>
                 )}
+                <button className="ai-toggle" onClick={toggleAI} aria-expanded={aiOpen}>
+                    <Sparkles size={14} aria-hidden="true" />
+                    AI Analysis
+                    <ChevronDown size={14} aria-hidden="true" className={`chev ${aiOpen ? 'open' : ''}`} />
+                </button>
             </div>
+
+            {aiOpen && (
+                <div className="ai-expand">
+                    <div className="ai-expand-head">
+                        <span className="ai-expand-label">Gemini analyst note</span>
+                        <button
+                            className="refresh-ai-btn"
+                            onClick={() => data.requestAIRefresh?.()}
+                            disabled={data.aiLoading}
+                        >
+                            {data.aiLoading ? 'Generating…' : 'Regenerate'}
+                        </button>
+                    </div>
+                    {data.aiAnalysis ? (
+                        <p className="ai-text">{data.aiAnalysis}</p>
+                    ) : (
+                        <div className="ai-skeleton" aria-label="Generating analysis">
+                            <div className="skeleton-line" style={{ width: '92%' }} />
+                            <div className="skeleton-line" style={{ width: '80%' }} />
+                            <div className="skeleton-line" style={{ width: '86%' }} />
+                            <div className="skeleton-line" style={{ width: '55%' }} />
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

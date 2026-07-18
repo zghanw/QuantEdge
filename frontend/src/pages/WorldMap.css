@@ -36,6 +36,22 @@
   flex: 1;
   position: relative;
   min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4.5rem 2rem 4rem; /* clear the HUD chips top and bottom */
+  overflow: hidden;
+}
+
+.map-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.map-frame {
+  width: 100%;
+  max-width: 1150px;
 }
 
 /* Hover tooltip injected by globe.gl */

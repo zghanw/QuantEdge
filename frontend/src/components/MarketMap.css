@@ -1,0 +1,84 @@
+.market-map {
+  position: relative;
+  width: 100%;
+}
+
+.market-map svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.map-dots rect {
+  fill: #3f3f46;
+  opacity: 0.55;
+}
+
+.map-marker {
+  cursor: pointer;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.15s ease;
+  outline: none;
+}
+
+.map-marker:hover,
+.map-marker:focus-visible {
+  transform: scale(1.4);
+}
+
+.map-marker:focus-visible {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.map-marker.is-open {
+  animation: marker-pulse 2s ease-in-out infinite;
+}
+
+@keyframes marker-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.marker-ring {
+  fill: none;
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+  opacity: 0.7;
+}
+
+.map-label {
+  fill: rgba(250, 250, 250, 0.75);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+.map-tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--border-radius-sm);
+  padding: 0.5rem 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-marker.is-open {
+    animation: none;
+  }
+
+  .map-marker:hover,
+  .map-marker:focus-visible {
+    transform: none;
+  }
+}

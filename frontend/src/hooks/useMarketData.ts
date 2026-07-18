@@ -21,6 +21,7 @@ export interface MarketData {
     history: Array<{ timestamp: string, price: number }>;
     headlines: Headline[];
     aiAnalysis: string | null;
+    aiLoading: boolean;
     requestAIRefresh?: () => void;
 }
 
@@ -39,13 +40,15 @@ export function useMarketData(ticker: string) {
         dataAgeSeconds: null,
         history: [],
         headlines: [],
-        aiAnalysis: null
+        aiAnalysis: null,
+        aiLoading: false
     });
 
     const wsRef = useRef<WebSocket | null>(null);
 
     const requestAIRefresh = () => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
+            setData(prev => ({ ...prev, aiLoading: true }));
             wsRef.current.send(JSON.stringify({ action: "refresh_ai" }));
         }
     };
@@ -69,6 +72,7 @@ export function useMarketData(ticker: string) {
                     setData(prev => ({
                         ...prev,
                         aiAnalysis: message.analysis,
+                        aiLoading: false,
                         headlines: message.headlines ?? prev.headlines
                     }));
                     return;
