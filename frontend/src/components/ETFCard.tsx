@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { Sparkles, ChevronDown } from 'lucide-react';
 import { useMarketData } from '../hooks/useMarketData';
 import './ETFCard.css';
@@ -62,8 +62,8 @@ export const ETFCard: React.FC<ETFCardProps> = ({ ticker, onRemove, regimeVerdic
                                 {data.confidence ?? '--'} confidence
                             </span>
                             <span className="feed-note">
-                                15-min delayed
-                                {data.dataAgeSeconds != null ? ` · tick ${formatAge(data.dataAgeSeconds)} ago` : ''}
+                                {data.feedMode === 'live' ? 'Live quotes' : data.feedMode === 'eod' ? 'EOD data' : 'Connecting'}
+                                {data.dataAgeSeconds != null ? ` · upd ${formatAge(data.dataAgeSeconds)} ago` : ''}
                             </span>
                         </p>
                     </div>
@@ -86,6 +86,8 @@ export const ETFCard: React.FC<ETFCardProps> = ({ ticker, onRemove, regimeVerdic
                     {data.history.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={data.history}>
+                                {/* hidden XAxis makes the tooltip label the bar time instead of the row index */}
+                                <XAxis dataKey="timestamp" hide />
                                 <YAxis domain={['auto', 'auto']} hide />
                                 <Tooltip
                                     contentStyle={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.16)', borderRadius: '8px', color: '#fafafa', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}

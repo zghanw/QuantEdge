@@ -7,9 +7,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from market_data import manager, engine, rest_client, start_polygon_ws
+from market_data import manager, engine, rest_client, start_market_poller
 from news import get_headlines
 from regime import compute_regime
+from worldstate import get_world_state
 
 async def regime_loop():
     while True:
@@ -22,9 +23,9 @@ async def regime_loop():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # The Polygon client runs in a plain thread — hand it this event loop
+    # The market poller runs in a plain thread — hand it this event loop
     # explicitly (get_running_loop() inside the thread would raise).
-    threading.Thread(target=start_polygon_ws, args=(asyncio.get_running_loop(),), daemon=True).start()
+    threading.Thread(target=start_market_poller, args=(asyncio.get_running_loop(),), daemon=True).start()
 
     # Background loop: market regime refresh.
     # Gemini analysis is on-demand only (WS "refresh_ai" action) to save tokens.
@@ -44,6 +45,11 @@ def read_root():
 @app.get("/regime")
 def get_regime():
     return engine.regime
+
+@app.get("/worldstate")
+def worldstate():
+    # Natural-hazard events for the map's world-state layer (30-min cache)
+    return get_world_state()
 
 @app.get("/signals")
 def get_signals():
@@ -72,9 +78,9 @@ def health():
             "clients": len(conns),
         }
     return {
-        "polygon_ws": {
-            "status": engine.ws_status,
-            "last_message_age_seconds": round(now - engine.last_ws_msg, 1) if engine.last_ws_msg else None,
+        "data_feed": {
+            "source": engine.ws_status,
+            "last_update_age_seconds": round(now - engine.last_ws_msg, 1) if engine.last_ws_msg else None,
         },
         "gemini_configured": engine.gemini_client is not None,
         "regime": {

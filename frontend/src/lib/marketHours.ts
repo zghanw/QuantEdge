@@ -6,7 +6,12 @@ export interface MarketStatus {
     localDay: string;    // "Mon"
     holiday: boolean;    // closed for a listed market holiday
     closeToday?: string; // set only when today closes early
+    closesInMin?: number; // set while the session is open
+    opensInMin?: number;  // set when closed but opening later today
 }
+
+export const fmtDuration = (min: number) =>
+    min >= 60 ? `${Math.floor(min / 60)}h ${String(min % 60).padStart(2, '0')}m` : `${min}m`;
 
 const DAY_NUM: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
@@ -33,11 +38,16 @@ export function getMarketStatus(ex: Exchange, now: Date = new Date()): MarketSta
 
     const tradingDays = ex.days ?? [1, 2, 3, 4, 5];
     let state: MarketStatus['state'] = 'closed';
+    let closesInMin: number | undefined;
+    let opensInMin: number | undefined;
     if (!holiday && tradingDays.includes(day) && minutes >= toMin(ex.open) && minutes < toMin(effectiveClose)) {
         state = 'open';
+        closesInMin = toMin(effectiveClose) - minutes;
         if (ex.lunch && minutes >= toMin(ex.lunch[0]) && minutes < toMin(ex.lunch[1])) {
             state = 'lunch';
         }
+    } else if (!holiday && tradingDays.includes(day) && minutes < toMin(ex.open)) {
+        opensInMin = toMin(ex.open) - minutes;
     }
 
     return {
@@ -46,5 +56,7 @@ export function getMarketStatus(ex: Exchange, now: Date = new Date()): MarketSta
         localDay: get('weekday'),
         holiday,
         closeToday: effectiveClose !== ex.close ? effectiveClose : undefined,
+        closesInMin,
+        opensInMin,
     };
 }

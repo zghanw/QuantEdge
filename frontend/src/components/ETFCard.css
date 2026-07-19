@@ -14,6 +14,13 @@
   align-items: stretch;
 }
 
+/* Grid children default to min-width:auto — a long unbreakable headline would
+   blow the column (and the full-width AI section) out of the card without this */
+.etf-card.horizontal > .etf-col,
+.etf-card.horizontal > .ai-expand {
+  min-width: 0;
+}
+
 .etf-card:hover {
   border-color: var(--border-strong);
 }
@@ -281,6 +288,7 @@
   color: var(--text-secondary);
   max-width: 72ch;
   white-space: pre-line; /* Read/Context/Levels/… each on their own line */
+  overflow-wrap: anywhere;
 }
 
 .ai-skeleton {
@@ -371,11 +379,14 @@
 
 .headline-link {
   font-size: 0.78rem;
+  line-height: 1.45;
   color: var(--text-muted);
   text-decoration: none;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* wrap long titles onto a second line, then ellipsis */
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
   transition: color var(--transition-fast);
 }
 

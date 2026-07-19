@@ -20,17 +20,18 @@ A high-performance, real-time stock market dashboard designed to track US Stocks
 1. [Executive Summary](#-executive-summary)
 2. [V2: Regime & Context Upgrade](#-v2-regime--context-upgrade)
 3. [V2.1: World Map](#-v21-world-map)
-4. [Market Analysis & Business Model](#-market-analysis--business-model)
-5. [Feasibility Study & PIECES Framework](#-feasibility-study--pieces-framework)
-6. [System Architecture](#-system-architecture)
-7. [User Flow](#-user-flow)
-8. [Software Development Life Cycle (SDLC)](#-software-development-life-cycle-sdlc)
-9. [Tech Stack](#-tech-stack)
-10. [Setup & Installation](#-setup--installation)
-11. [How to Close](#-how-to-close)
-12. [For Learners: How I Built This Project](#-for-learners-how-i-built-this-project)
-13. [License](#-license)
-14. [Thank You](#-thank-you)
+4. [V2.5: No-Websocket Data Feed & World State](#-v25-no-websocket-data-feed--world-state)
+5. [Market Analysis & Business Model](#-market-analysis--business-model)
+6. [Feasibility Study & PIECES Framework](#-feasibility-study--pieces-framework)
+7. [System Architecture](#-system-architecture)
+8. [User Flow](#-user-flow)
+9. [Software Development Life Cycle (SDLC)](#-software-development-life-cycle-sdlc)
+10. [Tech Stack](#-tech-stack)
+11. [Setup & Installation](#-setup--installation)
+12. [How to Close](#-how-to-close)
+13. [For Learners: How I Built This Project](#-for-learners-how-i-built-this-project)
+14. [License](#-license)
+15. [Thank You](#-thank-you)
 
 ---
 
@@ -43,7 +44,7 @@ Retail investors often lack access to institutional-grade, real-time quantitativ
 To democratize high-frequency algorithmic market intelligence by building a lightweight, highly responsive web application that translates raw tick data into plain-English financial insights in real-time.
 
 ### The Solution
-**Quantily** combines a real-time WebSocket data pipeline (Polygon.io) with a backend Quantitative Engine (Pandas). Instead of forcing users to manually interpret charts, the system feeds live mathematical data to an integrated Generative AI (Google Gemini 2.5 Flash), which produces instant, human-readable market interpretations exactly when needed.
+**Quantily** combines a rate-limit-aware polling data pipeline (Polygon.io + optional Finnhub) with a backend Quantitative Engine (Pandas), broadcasting updates to the browser over the app's own WebSocket. Instead of forcing users to manually interpret charts, the system feeds live mathematical data to an integrated Generative AI (Google Gemini 2.5 Flash) on demand, which produces instant, human-readable market interpretations exactly when the user asks for one.
 
 ---
 
@@ -54,8 +55,8 @@ Informed by a study of [worldmonitor](https://github.com/koala73/worldmonitor)'s
 - **Market Regime banner**: a composite Risk-On / Neutral / Risk-Off verdict from five independent signals — SPY vs its 200-day average (Polygon), watchlist breadth, VIX (Yahoo Finance), the 10Y-2Y yield spread (FRED), and CNN Fear & Greed. Per-ticker signals that fight the regime get a ⚠ counter-regime warning.
 - **True daily golden cross**: SMA 50/200 is now computed on daily bars (RSI/MACD stay on 5-minute bars for intraday momentum), and live ticks build proper 5-minute candles instead of mutating history.
 - **AI analyst v2**: the Gemini note follows a strict Read / Context / Confirmation / Invalidation / Horizon structure, grounded in live per-ticker headlines (Yahoo Finance RSS) and the current market regime.
-- **Honest signals**: every payload carries a confidence level, bar counts, data age, and a delayed-feed flag. `uv run python backtest.py SPY QQQ` replays the exact live scoring rule over historical daily bars so you can see its real hit rate before trusting it.
-- **Reliability**: the Polygon feed auto-reconnects with backoff and falls back to REST polling on plans without websocket access; `GET /health` reports per-source freshness; the watchlist persists across refreshes (localStorage + shareable `?tickers=` URL).
+- **Honest signals**: every payload carries a confidence level, bar counts, data age, and a feed-mode flag (live vs end-of-day). `uv run python backtest.py SPY QQQ` replays the exact live scoring rule over historical daily bars so you can see its real hit rate before trusting it.
+- **Reliability**: a polling data feed with no websockets required — `GET /health` reports per-source freshness; the watchlist persists across refreshes (localStorage + shareable `?tickers=` URL).
 
 ### 🔔 Notifications & Daily Digest
 
@@ -85,6 +86,19 @@ A `/map` route with a Vercel-style dotted 2D world map (plain SVG, no map librar
 - **Session ribbon**: an Asia-Pacific → Europe·MEA → Americas strip showing how many markets are open per region right now — the whole "follow the sun" handoff is visible in one glance.
 - **Trade assistance, not just a poster**: click any exchange → detail panel with local time and session hours → **"Track [ETF]"** maps it to a US-listed country ETF (Tokyo → EWJ, London → EWU, Mumbai → INDA, …) → it flows straight into the existing Polygon feed, signal engine, regime gate, and Gemini analyst. Tracked exchanges show their live signal right on the map.
 - The entire map page is ~5 KB gzipped (2,081 SVG land dots + markers) and keyboard-accessible — every marker is focusable.
+
+---
+
+## 🔧 V2.5: No-Websocket Data Feed & World State
+
+Polygon's free tier turned out to have no websocket/streaming access at all — the whole feed layer was rebuilt around that reality instead of fighting it, plus a round of accuracy and map-usability fixes.
+
+- **Two-source polling feed, no websockets**: with a free `FINNHUB_API_KEY` set, the backend polls Finnhub's real-time quote endpoint per tracked ticker (~10s cadence, well inside its 60-calls/min free limit) so intraday prices and indicators actually move. Without one, it falls back to polling Polygon's latest completed bar — which is genuinely **end-of-day only** on the free plan, not "15-minute delayed" as previously (incorrectly) labeled. Every card now shows **Live quotes** or **EOD data** honestly instead of a fixed claim, and Gemini's prompt is told which mode it's looking at.
+- **Fixed a silent freshness bug**: the old Polygon poller queried `sort="desc", limit=1`, which returns zero rows from the Python client — prices could look frozen even when fresh data existed. Fetching ascending and taking the last bar fixed it.
+- **Chart tooltip now shows real times**: the price chart had no `XAxis`, so hovering showed raw array indices (1–50) instead of bar timestamps. Fixed with a hidden time-keyed axis.
+- **Long headlines no longer overflow the card**: unbreakable long titles were stretching the AI/news column (and the AI note below it) past the card edge. Fixed with proper grid min-width handling and headline text clamping.
+- **World State hazard layer on the map**: a `/worldstate` endpoint aggregates USGS earthquakes (M4.5+, 24h) and NASA EONET open wildfires/volcanoes/storms — both free and keyless, cached 30 minutes server-side — and renders them as color-coded, severity-scaled dots (with a pulse on major events) that you can toggle on the map. Session countdowns ("closes in 2h 05m") were added to marker tooltips and the exchange panel.
+- **Every exchange is labeled and clickable directly on the map**: all 25 markers now carry hand-placed labels (not just the mega tier), and NYSE/NASDAQ (and Hong Kong/Shenzhen) — which previously rendered stacked on top of each other — are now visibly offset and independently clickable without going through the dropdown.
 
 ---
 
@@ -121,9 +135,10 @@ This project operates on an **Open-Source / Bring Your Own Key (BYOK)** model.
 
 Our architecture is strictly separated into a stateless high-performance backend and a reactive frontend:
 
-1. **Real-Time Pipeline**: A multiplexed WebSocket connection manager built with FastAPI streams live tick data directly from Polygon.io to the React frontend, bypassing free-tier REST API rate limits.
+1. **Polling Data Feed**: The backend polls quotes on a rate-limit-aware cadence — Finnhub's free real-time quotes (60 calls/min) when a `FINNHUB_API_KEY` is set, otherwise Polygon end-of-day bars (the free plan has no intraday or websocket access at all) — and streams updates to the React frontend over the app's own WebSocket.
 2. **Quantitative Engine**: As live data ticks in, Pandas and technical analysis (`ta`) libraries continuously recalculate Moving Average Crossovers (50/200 on daily bars), MACD momentum, and RSI oscillators (on 5-minute bars) to generate dynamic Buy/Sell/Hold signals, cross-checked against a five-signal Market Regime composite.
 3. **On-Demand AI Analyst**: Gemini is only called when the user clicks "AI Analysis" on a card (or "Regenerate" inside the note) — no background loops burning tokens. The backend passes the latest indicator math, market regime, and headlines to Gemini 2.5 Flash and returns a structured analyst note over the two-way WebSocket connection.
+4. **World State Feed**: A cached endpoint aggregates free hazard data (USGS earthquakes, NASA EONET wildfires/volcanoes/storms) every 30 minutes and serves it to the map as a togglable overlay.
 
 ---
 
@@ -153,7 +168,7 @@ This project followed an **Agile / Iterative** SDLC methodology:
 - **Backend**: Python, FastAPI, Uvicorn, Pandas, `ta` (Technical Analysis library)
 - **AI Integration**: Google GenAI SDK (`gemini-2.5-flash`)
 - **Frontend**: React, React Router, Vite, Recharts, SVG dotted world map, Lucide icons, Vanilla CSS
-- **Data Sources**: Polygon.io (WebSocket/REST), Yahoo Finance (headlines & VIX), FRED (yield spread), CNN Fear & Greed, Natural Earth (map topology)
+- **Data Sources**: Polygon.io (historical bars), Finnhub (optional free real-time quotes), Yahoo Finance (headlines & VIX), FRED (yield spread), CNN Fear & Greed, USGS (earthquakes), NASA EONET (wildfires/volcanoes/storms)
 - **Automation**: GitHub Actions (daily digest), Telegram/Discord webhooks
 
 ---
@@ -169,6 +184,11 @@ This project utilizes a "Bring Your Own Key" architecture. Anyone can clone this
   ```env
   POLYGON_API_KEY=your_polygon_key
   GEMINI_API_KEY=your_gemini_key
+
+  # Optional but recommended — free Finnhub key (finnhub.io) unlocks LIVE prices.
+  # Without it, Polygon's free plan only provides end-of-day data, so prices
+  # update after the session closes rather than during it.
+  FINNHUB_API_KEY=your_finnhub_key
 
   # Optional — push signal-change alerts to Telegram and/or Discord (see Notifications above)
   TELEGRAM_BOT_TOKEN=123:abc
@@ -221,11 +241,12 @@ If you are a student or a beginner developer looking to understand how this was 
 - **Action**: I chose **FastAPI** because it natively supports asynchronous programming (`async/await`), which is absolutely crucial when dealing with real-time continuous data streams.
 - **Key Term**: *Stateless Architecture* - A server design where the server does not store any persistent data (like user logins or databases). It simply processes incoming live data and pushes it directly to the user, making it incredibly lightweight and fast. Also widely known as serverless if you study cloud before.
 
-#### Step 3: Real-Time Data Pipeline (WebSockets + Polygon.io)
+#### Step 3: Real-Time Data Pipeline (Polling + Polygon.io/Finnhub)
 - **Goal**: Stream live stock prices to the UI without hitting API rate limits.
-- **Action**: I connected the backend to Polygon.io's live tick stream. Instead of having every user's browser connect to Polygon directly (which would break the free tier's 1-connection limit), I designed the backend to act as a central **Multiplexer**.
-- **Key Term**: *WebSocket* - A continuous, two-way connection between a client and a server (unlike REST APIs, where the client has to constantly "ask" the server for new data).
-- **Key Term**: *Multiplexing* - Taking a single data stream (the Polygon feed) and seamlessly broadcasting it to multiple destinations (the React clients) simultaneously.
+- **Action**: I originally connected the backend to Polygon.io's live tick stream via WebSocket, but discovered the free Polygon plan doesn't include websocket access at all (that's a paid-tier feature). I rebuilt the feed as a rate-limit-aware poller instead — Finnhub's free real-time quote endpoint when available, Polygon's end-of-day bars otherwise — with the backend still acting as a central **Multiplexer** that broadcasts each update to every connected browser over the app's own WebSocket, so only one upstream poll serves any number of open tabs.
+- **Key Term**: *Polling* - Repeatedly asking an API for the latest data on a timer, as opposed to the API pushing updates to you (streaming/websockets). Necessary when the free tier of a data provider doesn't offer streaming.
+- **Key Term**: *WebSocket* - A continuous, two-way connection between a client and a server (unlike REST APIs, where the client has to constantly "ask" the server for new data). Quantily's backend-to-browser link still uses one, even though the backend-to-Polygon link no longer can.
+- **Key Term**: *Multiplexing* - Taking a single data feed (whatever the backend polled) and seamlessly broadcasting it to multiple destinations (the React clients) simultaneously.
 
 #### Step 4: Quantitative Math Engine (Pandas)
 - **Goal**: Turn raw tick prices into actionable trading signals.

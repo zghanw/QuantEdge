@@ -155,6 +155,34 @@
 .dot-lunch { background: var(--warning); }
 .dot-closed { background: #525252; }
 .dot-tracked { background: var(--info); }
+.dot-hazard { background: #f97316; }
+
+.legend-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  padding: 0.15rem 0.45rem;
+  margin: -0.15rem -0.2rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: color var(--transition-fast), background var(--transition-fast), opacity var(--transition-fast);
+}
+
+.legend-toggle:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.legend-toggle.is-off {
+  opacity: 0.45;
+}
+
+.legend-toggle.is-off .dot-hazard {
+  background: #525252;
+}
 
 /* Exchange detail panel */
 .exchange-panel {

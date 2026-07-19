@@ -49,4 +49,11 @@ assert.strictEqual(st.holiday, false);
 st = getMarketStatus(jpx, new Date('2026-07-13T02:45:00Z'));
 assert.strictEqual(st.state, 'lunch');
 
+// Countdowns: NYSE Monday 10:30 EDT -> closes in 5h30m; 08:00 EDT -> opens in 1h30m
+st = getMarketStatus(nyse, new Date('2026-07-13T14:30:00Z'));
+assert.strictEqual(st.closesInMin, 330);
+st = getMarketStatus(nyse, new Date('2026-07-13T12:00:00Z'));
+assert.strictEqual(st.opensInMin, 90);
+assert.strictEqual(st.state, 'closed');
+
 console.log('marketHours: all checks passed.');

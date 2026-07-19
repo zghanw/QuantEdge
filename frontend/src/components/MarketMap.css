@@ -49,11 +49,31 @@
 }
 
 .map-label {
-  fill: rgba(250, 250, 250, 0.75);
+  fill: rgba(250, 250, 250, 0.72);
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: 9px;
+  letter-spacing: 0.03em;
   pointer-events: none;
+}
+
+/* World-state hazard events (USGS quakes + NASA EONET) */
+.hazard {
+  opacity: 0.8;
+  pointer-events: all;
+}
+
+.hazard-quake { fill: #fb923c; }
+.hazard-wildfire { fill: #f97316; }
+.hazard-volcano { fill: #ef4444; }
+.hazard-storm { fill: #a78bfa; }
+
+.hazard.is-severe {
+  animation: hazard-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes hazard-pulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.4; }
 }
 
 .map-tooltip {
@@ -73,7 +93,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .map-marker.is-open {
+  .map-marker.is-open,
+  .hazard.is-severe {
     animation: none;
   }
 

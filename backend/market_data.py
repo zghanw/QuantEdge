@@ -1,12 +1,14 @@
 import os
+import json
 import time
 import asyncio
+import urllib.request
 import pandas as pd
 import ta
 from google import genai
 from dotenv import load_dotenv
 from typing import Dict, List, Optional
-from polygon import RESTClient, WebSocketClient
+from polygon import RESTClient
 from fastapi import WebSocket
 
 from news import get_headlines
@@ -14,6 +16,7 @@ import notify
 
 load_dotenv()
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
+FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")  # optional: free real-time quotes
 
 rest_client = RESTClient(api_key=POLYGON_API_KEY)
 
@@ -205,7 +208,7 @@ class MarketEngine:
                 "bars_daily": bars_daily,
                 "data_age_seconds": age,
                 "confidence": confidence,
-                "feed_delayed": True,  # Polygon free tier streams 15-min delayed data
+                "feed_mode": "live" if FINNHUB_API_KEY else "eod",  # Polygon free tier = end-of-day bars
             }
         except Exception as e:
             print(f"Error calculating indicators: {e}")
@@ -252,7 +255,7 @@ class MarketEngine:
         - Daily trend: SMA(50) = ${indicators.get('sma_50')}, SMA(200) = ${indicators.get('sma_200')}
         - 20-day close range: ${indicators.get('low_20d')} – ${indicators.get('high_20d')}
         - Rule-based signal: {indicators.get('signal')} (score {indicators.get('score')})
-        - Data confidence: {indicators.get('confidence')} (15-minute delayed feed)
+        - Data confidence: {indicators.get('confidence')} ({'live quotes' if FINNHUB_API_KEY else 'end-of-day data'})
         - Market regime: {regime.get('verdict', 'Unknown')} ({component_notes})
         - Recent headlines:
         {headline_block}
@@ -303,108 +306,80 @@ engine = MarketEngine()
 # The FastAPI event loop, handed to us by main.py's lifespan
 main_loop = None
 
-def handle_msg(msgs):
-    engine.last_ws_msg = time.time()
-    for m in msgs:
-        if m.event_type in ['AM', 'A', 'T']:
-            # AM = per minute agg, A = per second agg, T = trade
-            ticker = m.sym
-            if ticker not in manager.active_connections:
-                continue  # AM.* streams the whole market; only process tracked tickers
-            price = m.close if hasattr(m, 'close') else m.price
-            ts = m.end_timestamp if hasattr(m, 'end_timestamp') else m.timestamp
-
-            engine.add_live_tick(ticker, price, ts)
-            indicators = engine.calculate_indicators(ticker)
-            notify.maybe_notify_signal_change(
-                ticker, indicators.get("signal"), price, engine.regime.get("verdict", "Unknown"))
-
-            payload = {
-                "ticker": ticker,
-                "price": price,
-                "timestamp": ts,
-                **indicators
-            }
-
-            if main_loop:
-                asyncio.run_coroutine_threadsafe(
-                    manager.broadcast(ticker, payload),
-                    main_loop
-                )
+def _finnhub_quote(ticker: str):
+    """Real-time US quote from Finnhub's free tier (60 calls/min).
+    Returns dict with c=current, dp=day change %, t=unix seconds — or None."""
+    url = f"https://finnhub.io/api/v1/quote?symbol={ticker}&token={FINNHUB_API_KEY}"
+    with urllib.request.urlopen(url, timeout=8) as resp:
+        q = json.loads(resp.read())
+    return q if q.get("c") else None
 
 def _poll_latest_bar(ticker):
+    # Ascending fetch, take the last bar. (sort="desc" + small limit returns
+    # zero results from the python client — verified empirically.)
     from datetime import datetime, timedelta
     end = datetime.now()
-    for a in rest_client.list_aggs(
+    bars = list(rest_client.list_aggs(
         ticker, 5, "minute",
-        (end - timedelta(days=5)).strftime("%Y-%m-%d"),
+        (end - timedelta(days=4)).strftime("%Y-%m-%d"),
         end.strftime("%Y-%m-%d"),
-        limit=1, sort="desc"
-    ):
-        return a  # newest bar first
-    return None
+        limit=50000
+    ))
+    return bars[-1] if bars else None
 
-def start_rest_polling(loop):
-    """Fallback when the Polygon plan has no websocket access: round-robin the
-    tracked tickers, one REST snapshot every ~15s (free tier allows 5 req/min).
-    ponytail: a plan with websocket access makes this loop unnecessary."""
-    global main_loop
-    main_loop = loop
-    engine.ws_status = "rest-polling (plan has no websocket access)"
-    while True:
-        tickers = [t for t in list(manager.active_connections) if t in engine.historical_data]
-        if not tickers:
-            time.sleep(5)
-            continue
-        for ticker in tickers:
-            try:
-                bar = _poll_latest_bar(ticker)
-                if bar is not None:
-                    engine.last_ws_msg = time.time()
-                    engine.add_live_tick(ticker, bar.close, bar.timestamp)
-                    indicators = engine.calculate_indicators(ticker)
-                    notify.maybe_notify_signal_change(
-                        ticker, indicators.get("signal"), bar.close, engine.regime.get("verdict", "Unknown"))
-                    payload = {"ticker": ticker, "price": bar.close, "timestamp": bar.timestamp, **indicators}
-                    if main_loop and manager.active_connections.get(ticker):
-                        asyncio.run_coroutine_threadsafe(manager.broadcast(ticker, payload), main_loop)
-            except Exception as e:
-                print(f"REST poll failed for {ticker}: {e}")
-            time.sleep(15)
+def start_market_poller(loop):
+    """The data feed, no websockets (the free Polygon plan has none).
 
-def start_polygon_ws(loop):
-    """Runs in a plain thread. `loop` is the FastAPI event loop, captured by the
-    caller — asyncio.get_running_loop() inside this thread would raise, silently
-    killing the feed. Reconnects with exponential backoff when the socket drops;
-    if the plan has no websocket access at all, switches to REST polling.
+    - With FINNHUB_API_KEY: real-time quotes per tracked ticker (~10s cadence,
+      far under Finnhub's free 60 calls/min). Live ticks build today's 5-min
+      candles on top of Polygon's history, so intraday indicators move.
+    - Polygon only: latest completed 5-min bar (~60s cadence). The free plan is
+      END-OF-DAY — today's bars only appear after the close, so prices are
+      static during the session by plan design, not by bug.
+
+    Runs in a plain thread; `loop` is the FastAPI event loop from lifespan.
     """
     global main_loop
     main_loop = loop
-    delay = 5
+    engine.ws_status = "finnhub-live" if FINNHUB_API_KEY else "polygon-eod-polling"
+    target_refresh = 10 if FINNHUB_API_KEY else 60  # seconds per ticker
     while True:
-        started = time.time()
-        try:
-            engine.ws_status = "connecting"
-            # Delayed feed is the only one available for stocks on free tier
-            client = WebSocketClient(
-                api_key=POLYGON_API_KEY,
-                feed="delayed.polygon.io",
-                market="stocks",
-                # ponytail: whole-market minute aggs; switch to per-ticker subscribe if bandwidth matters
-                subscriptions=["AM.*"]
-            )
-            engine.ws_status = "connected"
-            client.run(handle_msg=handle_msg)  # blocks until the connection drops
-            engine.ws_status = "disconnected"
-        except Exception as e:
-            engine.ws_status = "disconnected"
-            print(f"Polygon WS dropped: {e}")
-            if "websocket access" in str(e).lower():
-                print("Polygon plan has no websocket access — falling back to REST polling.")
-                start_rest_polling(loop)
-                return  # polling loop never returns
-        if time.time() - started > 120:
-            delay = 5  # connection held for a while — reset backoff
-        print(f"Reconnecting Polygon WS in {delay}s...")
-        time.sleep(delay)
-        delay = min(delay * 2, 60)
+        tickers = [t for t in list(manager.active_connections) if t in engine.historical_data]
+        if not tickers:
+            time.sleep(3)
+            continue
+        pace = max(target_refresh / len(tickers), 1.5)
+        for ticker in tickers:
+            try:
+                price = ts_ms = None
+                day_change_pct = None
+                if FINNHUB_API_KEY:
+                    q = _finnhub_quote(ticker)
+                    if q:
+                        price = float(q["c"])
+                        ts_ms = int(q.get("t", time.time()) * 1000)
+                        day_change_pct = q.get("dp")
+                else:
+                    bar = _poll_latest_bar(ticker)
+                    if bar is not None:
+                        price = bar.close
+                        ts_ms = bar.timestamp
+
+                if price is not None:
+                    engine.last_ws_msg = time.time()
+                    engine.add_live_tick(ticker, price, ts_ms)
+                    indicators = engine.calculate_indicators(ticker)
+                    notify.maybe_notify_signal_change(
+                        ticker, indicators.get("signal"), price, engine.regime.get("verdict", "Unknown"))
+                    payload = {
+                        "ticker": ticker,
+                        "price": price,
+                        "timestamp": ts_ms,
+                        "day_change_pct": day_change_pct,
+                        **indicators
+                    }
+                    if main_loop and manager.active_connections.get(ticker):
+                        asyncio.run_coroutine_threadsafe(manager.broadcast(ticker, payload), main_loop)
+            except Exception as e:
+                print(f"Feed poll failed for {ticker}: {e}")
+            time.sleep(pace)

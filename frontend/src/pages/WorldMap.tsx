@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Plus, Check } from 'lucide-react';
 import { NavTabs } from '../components/NavTabs';
-import { MarketMap } from '../components/MarketMap';
+import { MarketMap, type WorldEvent } from '../components/MarketMap';
 import { EXCHANGES, type Exchange, type Region } from '../config/exchanges';
-import { getMarketStatus, type MarketStatus } from '../lib/marketHours';
+import { fmtDuration, getMarketStatus, type MarketStatus } from '../lib/marketHours';
 import { loadTickers, addTicker } from '../lib/watchlist';
 import './Dashboard.css';
 import './WorldMap.css';
@@ -32,6 +32,13 @@ const WorldMap = () => {
     const [tick, setTick] = useState(0);
     const [regime, setRegime] = useState<{ verdict?: string } | null>(null);
     const [signals, setSignals] = useState<Record<string, any>>({});
+    const [worldEvents, setWorldEvents] = useState<WorldEvent[]>([]);
+    const [showHazards, setShowHazards] = useState(() => localStorage.getItem('quantily.map.hazards') !== 'off');
+
+    const toggleHazards = () => setShowHazards(s => {
+        localStorage.setItem('quantily.map.hazards', s ? 'off' : 'on');
+        return !s;
+    });
 
     // Recompute open/closed statuses every 30s
     useEffect(() => {
@@ -48,6 +55,8 @@ const WorldMap = () => {
                 .then(d => { if (!cancelled) setRegime(d); }).catch(() => {});
             fetch(`${API}/signals`).then(r => r.json())
                 .then(d => { if (!cancelled) setSignals(d); }).catch(() => {});
+            fetch(`${API}/worldstate`).then(r => r.json())
+                .then(d => { if (!cancelled) setWorldEvents(d.events ?? []); }).catch(() => {});
         };
         load();
         const id = setInterval(load, 5 * 60_000);
@@ -118,6 +127,7 @@ const WorldMap = () => {
                         signals={signals}
                         selectedId={selectedId}
                         onSelect={handleSelect}
+                        worldEvents={showHazards ? worldEvents : []}
                     />
                 </div>
 
@@ -148,6 +158,14 @@ const WorldMap = () => {
                     <span><i className="dot dot-lunch" aria-hidden="true" /> Lunch break</span>
                     <span><i className="dot dot-closed" aria-hidden="true" /> Closed</span>
                     <span><i className="dot dot-tracked" aria-hidden="true" /> On watchlist</span>
+                    <button
+                        className={`legend-toggle ${showHazards ? '' : 'is-off'}`}
+                        onClick={toggleHazards}
+                        aria-pressed={showHazards}
+                        title="Earthquakes, wildfires, volcanoes and storms (USGS + NASA EONET)"
+                    >
+                        <i className="dot dot-hazard" aria-hidden="true" /> World events
+                    </button>
                 </div>
 
                 {selected && selectedStatus && (
@@ -167,6 +185,12 @@ const WorldMap = () => {
 
                         <dl className="panel-facts">
                             <div><dt>Local time</dt><dd>{selectedStatus.localTime} · {selectedStatus.localDay}</dd></div>
+                            {selectedStatus.closesInMin != null && (
+                                <div><dt>Closes in</dt><dd>{fmtDuration(selectedStatus.closesInMin)}</dd></div>
+                            )}
+                            {selectedStatus.opensInMin != null && (
+                                <div><dt>Opens in</dt><dd>{fmtDuration(selectedStatus.opensInMin)}</dd></div>
+                            )}
                             <div>
                                 <dt>Session</dt>
                                 <dd>

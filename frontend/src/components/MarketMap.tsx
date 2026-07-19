@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { EXCHANGES, type Exchange } from '../config/exchanges';
-import type { MarketStatus } from '../lib/marketHours';
+import { fmtDuration, type MarketStatus } from '../lib/marketHours';
 import './MarketMap.css';
 
 // Vercel-style dotted 2D world map: plain SVG, no map library.
@@ -20,17 +20,36 @@ const STATUS_COLOR: Record<MarketStatus['state'], string> = {
 
 const mercY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
 
+const labelPos = (orient: Exchange['labelOrient'], x: number, y: number, r: number) => {
+    switch (orient) {
+        case 'top': return { x, y: y - r - 5, anchor: 'middle' as const };
+        case 'left': return { x: x - r - 5, y: y + 3, anchor: 'end' as const };
+        case 'right': return { x: x + r + 5, y: y + 3, anchor: 'start' as const };
+        default: return { x, y: y + r + 11, anchor: 'middle' as const };
+    }
+};
+
+export interface WorldEvent {
+    lat: number;
+    lng: number;
+    kind: string;   // quake | wildfire | volcano | storm
+    label: string;
+    severity: number; // 1-3
+}
+
 interface Props {
     statuses: Record<string, MarketStatus>;
     tracked: string[];
     signals: Record<string, any>;
     selectedId: string | null;
     onSelect: (ex: Exchange) => void;
+    worldEvents: WorldEvent[];
 }
 
-export const MarketMap = ({ statuses, tracked, signals, selectedId, onSelect }: Props) => {
+export const MarketMap = ({ statuses, tracked, signals, selectedId, onSelect, worldEvents }: Props) => {
     const [dots, setDots] = useState<[number, number][]>([]);
     const [hoveredId, setHoveredId] = useState<string | null>(null);
+    const [hoveredEvent, setHoveredEvent] = useState<number | null>(null);
 
     useEffect(() => {
         fetch('/world-dots.json')
@@ -52,30 +71,52 @@ export const MarketMap = ({ statuses, tracked, signals, selectedId, onSelect }: 
     }, [dots]);
 
     const markers = useMemo(() => EXCHANGES.map(ex => {
-        const [x, y] = project(ex.lng, ex.lat);
-        return { ex, x, y };
+        const [px, py] = project(ex.lng, ex.lat);
+        return { ex, x: px + (ex.mapOffset?.[0] ?? 0), y: py + (ex.mapOffset?.[1] ?? 0) };
     }), [project]);
+
+    const events = useMemo(() => worldEvents.map((ev, i) => {
+        const [x, y] = project(ev.lng, ev.lat);
+        return { ...ev, x, y, i };
+    }), [project, worldEvents]);
 
     const hovered = markers.find(m => m.ex.id === hoveredId) ?? null;
     const hoveredStatus = hovered ? statuses[hovered.ex.id] : null;
     const hoveredSignal = hovered?.ex.etf && tracked.includes(hovered.ex.etf)
         ? signals[hovered.ex.etf] : null;
+    const hoveredEv = hoveredEvent != null ? events[hoveredEvent] : null;
 
     return (
         <div className="market-map">
-            <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="World map of stock exchanges">
+            <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="World map of stock exchanges and hazard events">
                 <g className="map-dots">
                     {dots.map(([lon, lat], i) => {
                         const [x, y] = project(lon, lat);
                         return <rect key={i} x={x - 1.3} y={y - 1.3} width={2.6} height={2.6} />;
                     })}
                 </g>
+
+                <g>
+                    {events.map(ev => (
+                        <circle
+                            key={`ev-${ev.i}`}
+                            className={`hazard hazard-${ev.kind} ${ev.severity >= 3 ? 'is-severe' : ''}`}
+                            cx={ev.x} cy={ev.y} r={2.5 + ev.severity}
+                            onMouseEnter={() => setHoveredEvent(ev.i)}
+                            onMouseLeave={() => setHoveredEvent(null)}
+                        >
+                            <title>{ev.label}</title>
+                        </circle>
+                    ))}
+                </g>
+
                 <g>
                     {markers.map(({ ex, x, y }) => {
                         const st = statuses[ex.id];
                         const isTracked = !!(ex.etf && tracked.includes(ex.etf));
                         const color = isTracked ? '#3b82f6' : STATUS_COLOR[st.state];
                         const r = TIER_R[ex.tier];
+                        const lp = labelPos(ex.labelOrient, x, y, r);
                         return (
                             <g key={ex.id}>
                                 {ex.id === selectedId && (
@@ -91,16 +132,9 @@ export const MarketMap = ({ statuses, tracked, signals, selectedId, onSelect }: 
                                     onMouseEnter={() => setHoveredId(ex.id)}
                                     onMouseLeave={() => setHoveredId(null)}
                                 />
-                                {ex.tier === 'mega' && (
-                                    <text
-                                        className="map-label"
-                                        x={x}
-                                        y={ex.labelOrient === 'top' ? y - r - 5 : y + r + 12}
-                                        textAnchor="middle"
-                                    >
-                                        {ex.shortName}
-                                    </text>
-                                )}
+                                <text className="map-label" x={lp.x} y={lp.y} textAnchor={lp.anchor}>
+                                    {ex.shortName}
+                                </text>
                             </g>
                         );
                     })}
@@ -117,6 +151,8 @@ export const MarketMap = ({ statuses, tracked, signals, selectedId, onSelect }: 
                     {hoveredStatus.state === 'lunch' ? 'LUNCH BREAK'
                         : hoveredStatus.holiday ? 'HOLIDAY'
                         : hoveredStatus.state.toUpperCase()} · {hoveredStatus.localTime} local
+                    {hoveredStatus.closesInMin != null && ` · closes in ${fmtDuration(hoveredStatus.closesInMin)}`}
+                    {hoveredStatus.opensInMin != null && ` · opens in ${fmtDuration(hoveredStatus.opensInMin)}`}
                     {hoveredSignal?.signal && !['Waiting for data', 'Error'].includes(hoveredSignal.signal) && (
                         <>
                             <br />
@@ -126,6 +162,17 @@ export const MarketMap = ({ statuses, tracked, signals, selectedId, onSelect }: 
                             </span>
                         </>
                     )}
+                </div>
+            )}
+
+            {hoveredEv && !hovered && (
+                <div
+                    className="map-tooltip"
+                    style={{ left: `${(hoveredEv.x / W) * 100}%`, top: `${(hoveredEv.y / H) * 100}%` }}
+                >
+                    <b>{hoveredEv.kind.toUpperCase()}</b>
+                    <br />
+                    {hoveredEv.label}
                 </div>
             )}
         </div>

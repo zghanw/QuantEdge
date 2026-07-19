@@ -17,6 +17,7 @@ export interface MarketData {
     sma_50: number | null;
     sma_200: number | null;
     confidence: string | null;
+    feedMode: 'live' | 'eod' | null;
     dataAgeSeconds: number | null;
     history: Array<{ timestamp: string, price: number }>;
     headlines: Headline[];
@@ -37,6 +38,7 @@ export function useMarketData(ticker: string) {
         sma_50: null,
         sma_200: null,
         confidence: null,
+        feedMode: null,
         dataAgeSeconds: null,
         history: [],
         headlines: [],
@@ -103,6 +105,7 @@ export function useMarketData(ticker: string) {
                         sma_50: message.sma_50 !== undefined ? message.sma_50 : prevData.sma_50,
                         sma_200: message.sma_200 !== undefined ? message.sma_200 : prevData.sma_200,
                         confidence: message.confidence ?? prevData.confidence,
+                        feedMode: message.feed_mode ?? prevData.feedMode,
                         dataAgeSeconds: message.data_age_seconds !== undefined ? message.data_age_seconds : prevData.dataAgeSeconds,
                         headlines: message.headlines ?? prevData.headlines,
                         history: newHistory
